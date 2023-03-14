@@ -3,6 +3,7 @@
 Copyright (c) 2019 - present AppSeed.us
 """
 
+from cgitb import reset
 from datetime import datetime, timezone, timedelta
 
 from functools import wraps
@@ -27,7 +28,7 @@ login_model = rest_api.model('LoginModel', {"name": fields.String(required=True,
                                             "password": fields.String(required=True, min_length=4, max_length=20)
                                             })
 
-user_edit_model = rest_api.model('UserEditModel', {"user_id": fields.String(required=True, min_length=1, max_length=32),
+user_edit_model = rest_api.model('UserEditModel', {"user_id": fields.Integer(required=True),
                                                    "first_name": fields.String(required=False, min_length=2, max_length=32),
                                                    "last_name": fields.String(required=False, min_length=2, max_length=32),
                                                    "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
@@ -39,7 +40,7 @@ user_edit_model = rest_api.model('UserEditModel', {"user_id": fields.String(requ
 
 user_add_model = rest_api.model('UserAddModel', {"first_name": fields.String(required=True, min_length=2, max_length=32),
                                                     "last_name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "group_id": fields.String(required=True, min_length=1, max_length=32)
+                                                    "group_id": fields.Integer(required=True)
                                                     })
 
 group_add_model = rest_api.model('GroupAddModel', {"name": fields.String(required=True, min_length=2, max_length=32),
@@ -47,22 +48,30 @@ group_add_model = rest_api.model('GroupAddModel', {"name": fields.String(require
                                                     "super_group": fields.Boolean(required=False)
                                                     })
 
-group_edit_model = rest_api.model('GroupEditModel', {"group_id": fields.String(required=True, min_length=1, max_length=32),
+group_edit_model = rest_api.model('GroupEditModel', {"group_id": fields.Integer(required=True),
                                                     "name": fields.String(required=True, min_length=2, max_length=32),
                                                     "password": fields.String(required=True, min_length=10, max_length=20)
                                                     })
 
-group_delete_model = rest_api.model('GroupDeleteModel', {"group_id": fields.String(required=True, min_length=1, max_length=32)
+group_delete_model = rest_api.model('GroupDeleteModel', {"group_id": fields.Integer(required=True)
                                                     })
 
-user_delete_model = rest_api.model('UserDeleteModel', {"user_id": fields.String(required=True, min_length=1, max_length=32)
+user_delete_model = rest_api.model('UserDeleteModel', {"user_id": fields.Integer(required=True)
                                                     })
 
-group_get_users_model = rest_api.model('GroupGetUsersModel', {"group_id": fields.String(required=True, min_length=1, max_length=32)
+group_get_users_model = rest_api.model('GroupGetUsersModel', {"group_id": fields.Integer(required=True)
                                                     })
 
-user_get_model = rest_api.model('UserGetModel', {"user_id": fields.String(required=True, min_length=1, max_length=32)
+user_get_model = rest_api.model('UserGetModel', {"user_id": fields.Integer(required=True)
                                                     })
+
+self_edit_model = rest_api.model('SelfEditModel', {"user_id": fields.Integer(required=True),
+                                                   "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
+                                                   "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
+                                                   "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
+                                                   "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
+                                                   "songRequest": fields.String(required=False, min_length=0, max_length=512)
+                                                   })
 
 """
     Flask-Restx models for api request and response data
@@ -183,7 +192,7 @@ class DeleteGroup(Resource):
 
     @rest_api.expect(group_delete_model, validate=True)
     @token_required
-    def post(self):
+    def post(self, current_group):
 
         req_data = request.get_json()
 
@@ -248,7 +257,7 @@ class AddUser(Resource):
 
     @rest_api.expect(user_add_model, validate=True)
     @token_required
-    def post(self):
+    def post(self, current_group):
 
         req_data = request.get_json()
 
@@ -268,7 +277,7 @@ class AddUser(Resource):
                 "userID": new_user.id,
                 "msg": "The user was successfully registered"}, 200
 
-@rest_api.route('/api/users/edit')
+@rest_api.route('/api/user/edit')
 class EditUser(Resource):
     """
        Edit user by taking 'user_edit_model' input
@@ -295,6 +304,10 @@ class EditUser(Resource):
             return {"success": False,
                     "msg": "User does not exist"}, 400
 
+        # Check if user is in group
+        if(current_group.id != user_exists.groupId or not current_group.super_group):
+            return {"success": False, "msg": "User is not in group"}, 400
+
         user_exists.first_name = _first_name
         user_exists.last_name = _last_name
         user_exists.registerationStatus = _registerationStatus
@@ -307,6 +320,40 @@ class EditUser(Resource):
 
         return {"success": True,
                 "msg": "The user was successfully edited"}, 200
+
+@rest_api.route('/api/self/register')
+class EditSelf(Resource):
+    """
+        Edit self by taking 'self_edit_model' input
+    """
+    @rest_api.expect(self_edit_model, validate=True)
+    @token_required
+    def post(self, current_group):
+    
+        req_data = request.get_json()
+    
+        _user_id = req_data.get("userID")
+        _registerationStatus = req_data.get("registerationStatus")
+        _addendingStatus = req_data.get("addendingStatus")
+        _dietaryRestrictions = req_data.get("dietaryRestrictions")
+        _dietaryInfo = req_data.get("dietaryInfo")
+        _songRequest = req_data.get("songRequest")
+    
+        user_exists = Users.get_by_id(_user_id)
+        if not user_exists:
+            return {"success": False,
+                    "msg": "User does not exist"}, 400
+    
+        user_exists.registerationStatus = _registerationStatus
+        user_exists.addendingStatus = _addendingStatus
+        user_exists.dietaryRestrictions = _dietaryRestrictions
+        user_exists.dietaryInfo = _dietaryInfo
+        user_exists.songRequest = _songRequest
+        user_exists.save()
+    
+        return {"success": True,
+                "msg": "The user was successfully edited"}, 200
+   
 
 @rest_api.route('/api/users/delete')
 class DeleteUser(Resource):
