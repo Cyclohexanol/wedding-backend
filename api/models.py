@@ -5,7 +5,7 @@ Copyright (c) 2019 - present AppSeed.us
 
 from datetime import datetime
 
-import json
+import csv
 import enum
 
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -195,15 +195,20 @@ class Wishes(db.Model):
 
 @event.listens_for(Wishes.__table__, 'after_create')
 def init_wishes(*args, **kwargs):
-    for i in range(100):
-        wish = Wishes(
-            title=f"Item {i}",
-            description="This is a description",
-            picture_url="https://picsum.photos/200/300",
-            quantity=1,
-            price=1000
-        )
-        wish.save()
+    # Read ./data/wish_list.csv to populate default data
+    with open("./data/wish_list.csv", "r") as f:
+        csvreader = csv.reader(f)
+        # Skip headers on first line
+        next(csvreader)
+        for row in csvreader:
+            wish = Wishes(
+                title=row[0],
+                description=row[1],
+                picture_url="https://fathers.com.sg/wp-content/uploads/2020/09/star-icon.png",
+                quantity=row[7],
+                price=row[6]
+            )
+            wish.save()
 
 # Association table for n to n relationship between Wishes and Groups
 wishes_groups = db.Table(

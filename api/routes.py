@@ -482,8 +482,8 @@ class WishList(Resource):
                 "msg": "The wish was successfully deleted"}, 200
 
     
-    # @token_required
-    def get(self):
+    @token_required
+    def get(self, _):
         """Get all wishes."""
         wishes = Wishes.get_all()
         return {"success": True,
