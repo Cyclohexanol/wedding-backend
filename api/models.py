@@ -195,8 +195,8 @@ class Wishes(db.Model):
 
 @event.listens_for(Wishes.__table__, 'after_create')
 def init_wishes(*args, **kwargs):
-    # Read ./data/wish_list.csv to populate default data
-    with open("./data/wish_list.csv", "r") as f:
+    # Read ./data/wishes.csv to populate default data
+    with open("./data/wishes.csv", "r") as f:
         csvreader = csv.reader(f)
         # Skip headers on first line
         next(csvreader)
@@ -209,6 +209,40 @@ def init_wishes(*args, **kwargs):
                 price=row[6]
             )
             wish.save()
+
+@event.listens_for(Groups.__table__, 'after_create')
+def init_wishes(*args, **kwargs):
+    # Read ./data/groups.csv to populate default data
+    with open("./data/groups.csv", "r") as f:
+        csvreader = csv.reader(f)
+        # Skip headers on first line
+        next(csvreader)
+        for row in csvreader:
+            group = Groups(
+                name=row[0],
+                super_group=True if row[2] == "TRUE" else False,
+            )
+            group.set_password(row[1])
+            group.save()
+
+@event.listens_for(Users.__table__, 'after_create')
+def init_wishes(*args, **kwargs):
+    # Read ./data/users.csv to populate default data
+    with open("./data/users.csv", "r") as f:
+        csvreader = csv.reader(f)
+        # Skip headers on first line
+        next(csvreader)
+        for row in csvreader:
+            group = Groups.query.filter_by(name=row[2]).first()
+            if group is None:
+                print(f"GROUP {row[2]} NOT FOUND! SKIPPING")
+                continue
+            user = Users(
+                first_name=row[0],
+                last_name=row[1],
+                group_id=group.id
+            )
+            user.save()
 
 # Association table for n to n relationship between Wishes and Groups
 wishes_groups = db.Table(
