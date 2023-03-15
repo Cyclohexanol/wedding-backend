@@ -148,6 +148,8 @@ class Users(db.Model):
         cls_dict['groupId'] = self.group_id
         cls_dict['dietaryInfo'] = self.dietary_info
         cls_dict['songRequest'] = self.song_request
+        cls_dict['camping'] = self.camping_on_site
+        cls_dict['brunch'] = self.brunch_sunday
 
         return cls_dict
 
@@ -211,7 +213,7 @@ def init_wishes(*args, **kwargs):
             wish.save()
 
 @event.listens_for(Groups.__table__, 'after_create')
-def init_wishes(*args, **kwargs):
+def init_groups(*args, **kwargs):
     # Read ./data/groups.csv to populate default data
     with open("./data/groups.csv", "r") as f:
         csvreader = csv.reader(f)
@@ -219,14 +221,14 @@ def init_wishes(*args, **kwargs):
         next(csvreader)
         for row in csvreader:
             group = Groups(
-                name=row[0],
+                name=row[0].lower(),
                 super_group=True if row[2] == "TRUE" else False,
             )
             group.set_password(row[1])
             group.save()
 
 @event.listens_for(Users.__table__, 'after_create')
-def init_wishes(*args, **kwargs):
+def init_users(*args, **kwargs):
     # Read ./data/users.csv to populate default data
     with open("./data/users.csv", "r") as f:
         csvreader = csv.reader(f)

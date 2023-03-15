@@ -177,7 +177,7 @@ class GroupsEP(Resource):
         """Create a new group."""
         req_data = request.get_json()
 
-        _name = req_data.get("name")
+        _name = req_data.get("name").lower()
         _password = req_data.get("password")
         if "super_group" in req_data:
             _super_group = req_data.get("super_group")
@@ -219,7 +219,7 @@ class GroupsEP(Resource):
         """Update an existing group."""
         req_data = request.get_json()
         _id = req_data.get("group_id")
-        _name = req_data.get("name") if "name" in req_data else None
+        _name = req_data.get("name").lower() if "name" in req_data else None
         _password = req_data.get("password") if "password" in req_data else None
         _super_group = req_data.get("super_group") if "super_group" in req_data else None
         _members = req_data.get("members_id") if "members_id" in req_data else None
@@ -537,7 +537,7 @@ class Login(Resource):
 
         req_data = request.get_json()
 
-        _name = req_data.get("name")
+        _name = req_data.get("name").lower()
         _password = req_data.get("password")
 
         group_exists = Groups.get_by_name(_name)
