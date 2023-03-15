@@ -102,7 +102,8 @@ class Users(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
     dietary_info = db.Column(db.String(512))
     song_request = db.Column(db.String(512))
-
+    camping_on_site = db.Column(db.Boolean, default=False, nullable=False)
+    brunch_sunday = db.Column(db.Boolean, default=False, nullable=False)
 
     def __repr__(self):
         return f"User {self.username}"
