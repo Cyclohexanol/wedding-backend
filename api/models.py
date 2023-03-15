@@ -37,7 +37,7 @@ class Groups(db.Model):
     password = db.Column(db.String(128), nullable=False)
     users = db.relationship("Users", backref="group", lazy=True)
     super_group = db.Column(db.Boolean, default=False, nullable=False)
-    wishes = db.relationship(secondary="wishes_groups", back_populates="groups", lazy="dynamic")
+    wishes = db.relationship("Wishes", secondary="wishes_groups", back_populates="groups", lazy="dynamic")
     
     jwt_auth_active = db.Column(db.Boolean())
 
@@ -163,8 +163,11 @@ class Wishes(db.Model):
     picture_url = db.Column(db.String(100))
     quantity = db.Column(db.Integer, default=1, nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True)
-    groups = db.relationship(secondary="wishes_groups", back_populates="wishes", lazy="dynamic")
+    groups = db.relationship("Groups", secondary="wishes_groups", back_populates="wishes", lazy="dynamic")
+
+    @classmethod
+    def get_all(cls):
+        return cls.query.all()
 
     def delete(self):
         db.session.delete(self)
@@ -173,6 +176,22 @@ class Wishes(db.Model):
     def save(self):
         db.session.add(self)
         db.session.commit()
+
+    def toDICT(self):
+        cls_dict = {}
+        cls_dict['_id'] = self.id
+        cls_dict['title'] = self.title
+        cls_dict['description'] = self.description
+        cls_dict['pictureUrl'] = self.picture_url
+        cls_dict['quantity'] = self.quantity
+        cls_dict['price'] = self.price
+        cls_dict['groups'] = [group.toDICT() for group in self.groups]
+
+        return cls_dict
+
+    def toJSON(self):
+
+        return self.toDICT()
 
 @event.listens_for(Wishes.__table__, 'after_create')
 def init_wishes(*args, **kwargs):

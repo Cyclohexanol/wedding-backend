@@ -409,6 +409,11 @@ update_wish_model = rest_api.model('CreateWishModel', {
 delete_wish_model = rest_api.model('DeleteWishModel', {
     "wish_id": fields.Integer(required=True)
 })
+# TODO that's nearly the same model as for deleting a wish, generic models yo?
+purchase_wish_model = rest_api.model('PurchaseWishModel', {
+    "wish_id": fields.Integer(required=True),
+    "is_purchasing": fields.Boolean(required=True)
+})
 @rest_api.route('/api/wishlist')
 class WishList(Resource):
     """WishList endpoints."""
@@ -477,16 +482,42 @@ class WishList(Resource):
                 "msg": "The wish was successfully deleted"}, 200
 
     
-    @token_required
-    def get(self, _):
+    # @token_required
+    def get(self):
         """Get all wishes."""
         wishes = Wishes.get_all()
         return {"success": True,
-                "wishes": [wish.to_dict() for wish in wishes]}, 200
+                "wishes": [
+            # TODO to add the quantity of items left ```wish.toDICT().update({"quantity_left": wish.quantity - len(wish.groups)})``` or smth like that you feel me!
+            # Border case when a group takes more than 1 Wish from the same category. Think about adding a quantity field in the association table mdr lolilol
+                wish.toDICT() for wish in wishes
+            ]}, 200
     
     @token_required
+    @rest_api.expect(purchase_wish_model, validate=True)
     def put(self, current_group):
         """Purchase/Unpurchase a Wish."""
+        req_data = request.get_json()
+        _id = req_data.get("wish_id")
+        _is_purchasing = req_data.get("is_purchasing")
+        wish = Wishes.get_by_id(_id)
+        if wish is None:
+            return {"success": False,
+                    "msg": "Wish does not exist"}, 404
+        if not _is_purchasing:
+            if current_group in wish.groups:
+                wish.groups.remove(current_group)
+                wish.save()
+                return {"success": True,
+                        "msg": "The wish was successfully unpurchased"}, 200
+            else:
+                return {"success": False,
+                        "msg": "You cannot unpurchase a wish you did not purchase"}, 400
+        else:
+            wish.groups.append(current_group)
+            wish.save()
+            return {"success": True,
+                    "msg": "The wish was successfully purchased"}, 200
 
 ############ SINGLE METHODS ###############
 @rest_api.route('/api/groups/login')
