@@ -65,6 +65,10 @@ class Groups(db.Model):
     @classmethod
     def get_by_name(cls, name):
         return cls.query.filter_by(name=name).first()
+    
+    @classmethod
+    def get_by_id(cls, id):
+        return cls.query.filter_by(id=id).first()
 
     @classmethod
     def get_all(cls):
