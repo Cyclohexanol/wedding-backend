@@ -7,6 +7,7 @@ from cgitb import reset
 from datetime import datetime, timezone, timedelta
 
 from functools import wraps
+import json
 
 from flask import request
 from flask_restx import Api, Resource, fields
@@ -103,6 +104,7 @@ def admin_only(f):
         except:
             return {"success": False, "msg": "Token is invalid"}, 400
         return f(*args, **kwargs)
+    return decorator
 
 def token_required(f):
 
@@ -262,13 +264,16 @@ class UsersEP(Resource):
 
         _user_id = req_data.get("userID")
 
-        user_exists = Users.get_by_id(_user_id)
-        if not user_exists:
+        user = Users.get_by_id(_user_id)
+        if user.group_id != current_group.id and not current_group.super_group:
+            return {"success": False,
+                    "msg": "Unauthorized"}, 400
+        if not user:
             return {"success": False,
                     "msg": "User does not exist"}, 400
 
         return {"success": True,
-                "user": user_exists.toJSON()}, 200
+                "user": user.toJSON()}, 200
 
     @admin_only
     @rest_api.expect(user_add_model, validate=True)
@@ -418,15 +423,16 @@ class Login(Resource):
 
 @rest_api.route('/api/groups/getAllInfo')
 class GetAllInfo(Resource):
+    """Get all info about groups."""
     @admin_only
     def get(self):
         groups = Groups.get_all()
         response = {}
         for g in groups:
-            response[g.name] = [member for member in g.members]
+            response[g.name] = [member.toJSON() for member in g.users]
 
         return {"success": True,
-                    "data": groups.toJSON()}, 200
+                    "data": json.dumps(response)}, 200
 
 @rest_api.route('/api/groups/getUsers')
 class GetGroupUsers(Resource):
