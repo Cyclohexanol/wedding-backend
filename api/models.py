@@ -5,11 +5,12 @@ Copyright (c) 2019 - present AppSeed.us
 
 from datetime import datetime
 
-import json
+import csv
 import enum
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
 
 db = SQLAlchemy()
 
@@ -36,6 +37,7 @@ class Groups(db.Model):
     password = db.Column(db.String(128), nullable=False)
     users = db.relationship("Users", backref="group", lazy=True)
     super_group = db.Column(db.Boolean, default=False, nullable=False)
+    wishes = db.relationship("Wishes", secondary="wishes_groups", back_populates="groups", lazy="dynamic")
     
     jwt_auth_active = db.Column(db.Boolean())
 
@@ -65,6 +67,10 @@ class Groups(db.Model):
     @classmethod
     def get_by_name(cls, name):
         return cls.query.filter_by(name=name).first()
+    
+    @classmethod
+    def get_by_id(cls, id):
+        return cls.query.filter_by(id=id).first()
 
     @classmethod
     def get_all(cls):
@@ -98,7 +104,8 @@ class Users(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
     dietary_info = db.Column(db.String(512))
     song_request = db.Column(db.String(512))
-
+    camping_on_site = db.Column(db.Boolean, default=False, nullable=False)
+    brunch_sunday = db.Column(db.Boolean, default=False, nullable=False)
 
     def __repr__(self):
         return f"User {self.username}"
@@ -147,6 +154,69 @@ class Users(db.Model):
     def toJSON(self):
 
         return self.toDICT()
+    
+class Wishes(db.Model):
+    """Model representing Wish."""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(64), nullable=False)
+    description = db.Column(db.String(512))
+    picture_url = db.Column(db.String(100))
+    quantity = db.Column(db.Integer, default=1, nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+    groups = db.relationship("Groups", secondary="wishes_groups", back_populates="wishes", lazy="dynamic")
+
+    @classmethod
+    def get_all(cls):
+        return cls.query.all()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def toDICT(self):
+        cls_dict = {}
+        cls_dict['_id'] = self.id
+        cls_dict['title'] = self.title
+        cls_dict['description'] = self.description
+        cls_dict['pictureUrl'] = self.picture_url
+        cls_dict['quantity'] = self.quantity
+        cls_dict['price'] = self.price
+        cls_dict['groups'] = [group.toDICT() for group in self.groups]
+
+        return cls_dict
+
+    def toJSON(self):
+
+        return self.toDICT()
+
+@event.listens_for(Wishes.__table__, 'after_create')
+def init_wishes(*args, **kwargs):
+    # Read ./data/wish_list.csv to populate default data
+    with open("./data/wish_list.csv", "r") as f:
+        csvreader = csv.reader(f)
+        # Skip headers on first line
+        next(csvreader)
+        for row in csvreader:
+            wish = Wishes(
+                title=row[0],
+                description=row[1],
+                picture_url="https://fathers.com.sg/wp-content/uploads/2020/09/star-icon.png",
+                quantity=row[7],
+                price=row[6]
+            )
+            wish.save()
+
+# Association table for n to n relationship between Wishes and Groups
+wishes_groups = db.Table(
+    'wishes_groups',
+    db.Model.metadata,
+    db.Column('wish_id', db.Integer, db.ForeignKey('wishes.id'), primary_key=True),
+    db.Column('group_id', db.Integer, db.ForeignKey('groups.id'), primary_key=True)
+)
 
 
 class JWTTokenBlocklist(db.Model):

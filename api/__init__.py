@@ -48,9 +48,11 @@ def after_request(response):
     """
        Sends back a custom error with {"success", "msg"} format
     """
-
     if int(response.status_code) >= 400:
-        response_data = json.loads(response.get_data())
+        try:
+            response_data = json.loads(response.get_data())
+        except Exception:
+            response_data = {"success": False, "msg": "Server error", "html": response.get_data()}
         if "errors" in response_data:
             response_data = {"success": False,
                              "msg": list(response_data["errors"].items())[0][1]}
