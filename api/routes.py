@@ -14,7 +14,7 @@ from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, JWTTokenBlocklist
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API")
@@ -25,60 +25,70 @@ rest_api = Api(version="1.0", title="Saamb API")
 """
 
 
-login_model = rest_api.model('LoginModel', {"name": fields.String(required=True, min_length=4, max_length=64),
-                                            "password": fields.String(required=True, min_length=4, max_length=20)
-                                            })
+login_model = rest_api.model('LoginModel', {
+    "name": fields.String(required=True, min_length=4, max_length=64),
+    "password": fields.String(required=True, min_length=4, max_length=20)
+})
 
-user_edit_model = rest_api.model('UserEditModel', { "user_id": fields.Integer(required=True),
-                                                    "first_name": fields.String(required=False, min_length=2, max_length=32),
-                                                    "last_name": fields.String(required=False, min_length=2, max_length=32),
-                                                    "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                    "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                    "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
-                                                    "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
-                                                    "songRequest": fields.String(required=False, min_length=0, max_length=512),
-                                                    "group_id": fields.Integer(required=False),
-                                                    "camping": fields.Boolean(required=False),
-                                                    "brunch": fields.Boolean(required=False),
-                                                   })
+user_edit_model = rest_api.model('UserEditModel', {
+    "user_id": fields.Integer(required=True),
+    "first_name": fields.String(required=False, min_length=2, max_length=32),
+    "last_name": fields.String(required=False, min_length=2, max_length=32),
+    "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
+    "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
+    "songRequest": fields.String(required=False, min_length=0, max_length=512),
+    "group_id": fields.Integer(required=False),
+    "camping": fields.Boolean(required=False),
+    "brunch": fields.Boolean(required=False),
+})
 
-user_add_model = rest_api.model('UserAddModel', {"first_name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "last_name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "group_id": fields.Integer(required=True)
-                                                    })
+user_add_model = rest_api.model('UserAddModel', {
+    "first_name": fields.String(required=True, min_length=2, max_length=32),
+    "last_name": fields.String(required=True, min_length=2, max_length=32),
+    "group_id": fields.Integer(required=True)
+})
 
-group_add_model = rest_api.model('GroupAddModel', {"name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "password": fields.String(required=True, min_length=10, max_length=20),
-                                                    "super_group": fields.Boolean(required=False),
-                                                    "members_id": fields.List(fields.Integer, required=False)
-                                                    })
+group_add_model = rest_api.model('GroupAddModel', {
+    "name": fields.String(required=True, min_length=2, max_length=32),
+    "password": fields.String(required=True, min_length=10, max_length=20),
+    "super_group": fields.Boolean(required=False),
+    "members_id": fields.List(fields.Integer, required=False)
+})
 
-group_edit_model = rest_api.model('GroupEditModel', {"group_id": fields.Integer(required=True),
-                                                    "name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "password": fields.String(required=True, min_length=10, max_length=20),
-                                                    "super_group": fields.Boolean(required=False),
-                                                    "members_id": fields.List(fields.Integer, required=False)
-                                                    })
+group_edit_model = rest_api.model('GroupEditModel', {
+    "group_id": fields.Integer(required=True),
+    "name": fields.String(required=True, min_length=2, max_length=32),
+    "password": fields.String(required=True, min_length=10, max_length=20),
+    "super_group": fields.Boolean(required=False),
+    "members_id": fields.List(fields.Integer, required=False)
+})
 
-group_delete_model = rest_api.model('GroupDeleteModel', {"group_id": fields.Integer(required=True)
-                                                    })
+group_delete_model = rest_api.model('GroupDeleteModel', {
+    "group_id": fields.Integer(required=True)
+})
 
-user_delete_model = rest_api.model('UserDeleteModel', {"user_id": fields.Integer(required=True)
-                                                    })
+user_delete_model = rest_api.model('UserDeleteModel', {
+    "user_id": fields.Integer(required=True)
+})
 
-group_get_users_model = rest_api.model('GroupGetUsersModel', {"group_id": fields.Integer(required=True)
-                                                    })
+group_get_users_model = rest_api.model('GroupGetUsersModel', {
+    "group_id": fields.Integer(required=True)
+})
 
-user_get_model = rest_api.model('UserGetModel', {"user_id": fields.Integer(required=True)
-                                                    })
+user_get_model = rest_api.model('UserGetModel', {
+    "user_id": fields.Integer(required=True)
+})
 
-self_edit_model = rest_api.model('SelfEditModel', {"user_id": fields.Integer(required=True),
-                                                   "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                   "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                   "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
-                                                   "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
-                                                   "songRequest": fields.String(required=False, min_length=0, max_length=512)
-                                                   })
+self_edit_model = rest_api.model('SelfEditModel', {
+    "user_id": fields.Integer(required=True),
+    "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
+    "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
+    "songRequest": fields.String(required=False, min_length=0, max_length=512)
+})
 
 """
     Flask-Restx models for api request and response data
@@ -380,8 +390,105 @@ class UsersEP(Resource):
         return {"success": True,
                 "msg": "The user was successfully deleted"}, 200
 
+############ WISHES ###############
+create_wish_model = rest_api.model('CreateWishModel', {
+    "title": fields.String(required=True, min_length=0, max_length=64),
+    "price": fields.Integer(required=True),
+    "description": fields.String(required=False, min_length=0, max_length=512),
+    "picture_url": fields.String(required=False, min_length=0, max_length=100),
+    "quantity": fields.Integer(required=False)
+})
+update_wish_model = rest_api.model('CreateWishModel', {
+    "wish_id": fields.Integer(required=True),
+    "title": fields.String(required=False, min_length=0, max_length=64),
+    "price": fields.Integer(required=False),
+    "description": fields.String(required=False, min_length=0, max_length=512),
+    "picture_url": fields.String(required=False, min_length=0, max_length=100),
+    "quantity": fields.Integer(required=False)
+})
+delete_wish_model = rest_api.model('DeleteWishModel', {
+    "wish_id": fields.Integer(required=True)
+})
+@rest_api.route('/api/wishlist')
+class WishList(Resource):
+    """WishList endpoints."""
+    @admin_only
+    @rest_api.expect(create_wish_model, validate=True)
+    def post(self):
+        """Create new Wish."""
+        req_data = request.get_json()
+        _title = req_data.get("title")
+        _price = req_data.get("price")
+        _description = req_data.get("description") if "description" in req_data else None
+        _picture_url = req_data.get("picture_url") if "picture_url" in req_data else None
+        _quantity = req_data.get("quantity") if "quantity" in req_data else 1
+        wish = Wishes(
+            title=_title,
+            price=_price,
+            description=_description,
+            picture_url=_picture_url,
+            quantity=_quantity
+        )
+        wish.save()
+        return {"success": True,
+                "msg": "The wish was successfully created"}, 200
+    
+    @admin_only
+    @rest_api.expect(update_wish_model, validate=True)
+    def put(self):
+        """Update a Wish."""
+        req_data = request.get_json()
+        _id = req_data.get("wish_id")
+        _title = req_data.get("title") if "title" in req_data else None
+        _price = req_data.get("price") if "price" in req_data else None
+        _description = req_data.get("description") if "description" in req_data else None
+        _picture_url = req_data.get("picture_url") if "picture_url" in req_data else None
+        _quantity = req_data.get("quantity") if "quantity" in req_data else None
+        wish = Wishes.get_by_id(_id)
+        if wish is None:
+            return {"success": False,
+                    "msg": "Wish does not exist"}, 400
+        if _title:
+            wish.title = _title
+        if _price:
+            wish.price = _price
+        if _description:
+            wish.description = _description
+        if _picture_url:
+            wish.picture_url = _picture_url
+        if _quantity:
+            wish.quantity = _quantity
+        wish.save()
+        return {"success": True,
+                "msg": "The wish was successfully updated"}, 200
 
+    @admin_only
+    @rest_api.expect(delete_wish_model, validate=True)
+    def delete(self):
+        """Delete a Wish."""
+        req_data = request.get_json()
+        _id = req_data.get("wish_id")
+        wish = Wishes.get_by_id(_id)
+        if wish is None:
+            return {"success": False,
+                    "msg": "Wish does not exist"}, 400
+        wish.delete()
+        return {"success": True,
+                "msg": "The wish was successfully deleted"}, 200
 
+    
+    @token_required
+    def get(self, _):
+        """Get all wishes."""
+        wishes = Wishes.get_all()
+        return {"success": True,
+                "wishes": [wish.to_dict() for wish in wishes]}, 200
+    
+    @token_required
+    def put(self, current_group):
+        """Purchase/Unpurchase a Wish."""
+
+############ SINGLE METHODS ###############
 @rest_api.route('/api/groups/login')
 class Login(Resource):
     """
