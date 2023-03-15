@@ -7,13 +7,14 @@ from cgitb import reset
 from datetime import datetime, timezone, timedelta
 
 from functools import wraps
+import json
 
 from flask import request
 from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import db, Users, Groups, JWTTokenBlocklist
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API")
@@ -24,54 +25,70 @@ rest_api = Api(version="1.0", title="Saamb API")
 """
 
 
-login_model = rest_api.model('LoginModel', {"name": fields.String(required=True, min_length=4, max_length=64),
-                                            "password": fields.String(required=True, min_length=4, max_length=20)
-                                            })
+login_model = rest_api.model('LoginModel', {
+    "name": fields.String(required=True, min_length=4, max_length=64),
+    "password": fields.String(required=True, min_length=4, max_length=20)
+})
 
-user_edit_model = rest_api.model('UserEditModel', {"user_id": fields.Integer(required=True),
-                                                   "first_name": fields.String(required=False, min_length=2, max_length=32),
-                                                   "last_name": fields.String(required=False, min_length=2, max_length=32),
-                                                   "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                   "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                   "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
-                                                   "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
-                                                   "songRequest": fields.String(required=False, min_length=0, max_length=512)
-                                                   })
+user_edit_model = rest_api.model('UserEditModel', {
+    "user_id": fields.Integer(required=True),
+    "first_name": fields.String(required=False, min_length=2, max_length=32),
+    "last_name": fields.String(required=False, min_length=2, max_length=32),
+    "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
+    "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
+    "songRequest": fields.String(required=False, min_length=0, max_length=512),
+    "group_id": fields.Integer(required=False),
+    "camping": fields.Boolean(required=False),
+    "brunch": fields.Boolean(required=False),
+})
 
-user_add_model = rest_api.model('UserAddModel', {"first_name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "last_name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "group_id": fields.Integer(required=True)
-                                                    })
+user_add_model = rest_api.model('UserAddModel', {
+    "first_name": fields.String(required=True, min_length=2, max_length=32),
+    "last_name": fields.String(required=True, min_length=2, max_length=32),
+    "group_id": fields.Integer(required=True)
+})
 
-group_add_model = rest_api.model('GroupAddModel', {"name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "password": fields.String(required=True, min_length=10, max_length=20),
-                                                    "super_group": fields.Boolean(required=False)
-                                                    })
+group_add_model = rest_api.model('GroupAddModel', {
+    "name": fields.String(required=True, min_length=2, max_length=32),
+    "password": fields.String(required=True, min_length=10, max_length=20),
+    "super_group": fields.Boolean(required=False),
+    "members_id": fields.List(fields.Integer, required=False)
+})
 
-group_edit_model = rest_api.model('GroupEditModel', {"group_id": fields.Integer(required=True),
-                                                    "name": fields.String(required=True, min_length=2, max_length=32),
-                                                    "password": fields.String(required=True, min_length=10, max_length=20)
-                                                    })
+group_edit_model = rest_api.model('GroupEditModel', {
+    "group_id": fields.Integer(required=True),
+    "name": fields.String(required=True, min_length=2, max_length=32),
+    "password": fields.String(required=True, min_length=10, max_length=20),
+    "super_group": fields.Boolean(required=False),
+    "members_id": fields.List(fields.Integer, required=False)
+})
 
-group_delete_model = rest_api.model('GroupDeleteModel', {"group_id": fields.Integer(required=True)
-                                                    })
+group_delete_model = rest_api.model('GroupDeleteModel', {
+    "group_id": fields.Integer(required=True)
+})
 
-user_delete_model = rest_api.model('UserDeleteModel', {"user_id": fields.Integer(required=True)
-                                                    })
+user_delete_model = rest_api.model('UserDeleteModel', {
+    "user_id": fields.Integer(required=True)
+})
 
-group_get_users_model = rest_api.model('GroupGetUsersModel', {"group_id": fields.Integer(required=True)
-                                                    })
+group_get_users_model = rest_api.model('GroupGetUsersModel', {
+    "group_id": fields.Integer(required=True)
+})
 
-user_get_model = rest_api.model('UserGetModel', {"user_id": fields.Integer(required=True)
-                                                    })
+user_get_model = rest_api.model('UserGetModel', {
+    "user_id": fields.Integer(required=True)
+})
 
-self_edit_model = rest_api.model('SelfEditModel', {"user_id": fields.Integer(required=True),
-                                                   "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                   "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
-                                                   "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
-                                                   "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
-                                                   "songRequest": fields.String(required=False, min_length=0, max_length=512)
-                                                   })
+self_edit_model = rest_api.model('SelfEditModel', {
+    "user_id": fields.Integer(required=True),
+    "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
+    "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
+    "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
+    "songRequest": fields.String(required=False, min_length=0, max_length=512)
+})
 
 """
     Flask-Restx models for api request and response data
@@ -80,6 +97,24 @@ self_edit_model = rest_api.model('SelfEditModel', {"user_id": fields.Integer(req
 """
    Helper function for JWT token required
 """
+
+def admin_only(f):
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        token = None
+        if "authorization" in request.headers:
+            token = request.headers["authorization"]
+        if not token:
+            return {"success": False, "msg": "Valid JWT token is missing"}, 400
+        try:
+            data = jwt.decode(token, BaseConfig.SECRET_KEY, algorithms=["HS256"])
+            current_group = Groups.get_by_name(data["name"])
+            if not current_group.super_group:
+                return {"success": False, "msg": "Token is invalid"}, 400
+        except:
+            return {"success": False, "msg": "Token is invalid"}, 400
+        return f(*args, **kwargs)
+    return decorator
 
 def token_required(f):
 
@@ -126,89 +161,371 @@ def token_required(f):
     Flask-Restx routes
 """
 
+############## GROUPS #################
+@rest_api.route('/api/groups')
+class GroupsEP(Resource):
 
-@rest_api.route('/api/groups/add')
-class AddGroup(Resource):
-    """
-       Creates a new user by taking 'group_add_model' input
-    """
-
-    @rest_api.expect(group_add_model, validate=True)
     @token_required
-    def post(self):
+    def get(self, current_group):
+        """Get own group."""
+        return {"success": True,
+                "group": current_group.to_dict()}, 200
 
+    @admin_only
+    @rest_api.expect(group_add_model, validate=True)
+    def post(self):
+        """Create a new group."""
         req_data = request.get_json()
 
         _name = req_data.get("name")
         _password = req_data.get("password")
+        if "super_group" in req_data:
+            _super_group = req_data.get("super_group")
+        else:
+            _super_group = False
+        if "members_ids" in req_data:
+            _members = req_data.get("members_ids")
+        else:
+            _members = None
 
         group_exists = Groups.get_by_name(_name)
-        if group_exists:
+        if group_exists is not None:
             return {"success": False,
                     "msg": "Group name already taken"}, 400
 
-        new_group = Groups(name=_name)
+        new_group = Groups(name=_name, super_group=_super_group)
 
         new_group.set_password(_password)
+        if _members is not None:
+            users_to_update = []
+            for user_id in _members:
+                user = Users.get_by_id(user_id)
+                if user is None:
+                    return {"success": False,
+                            "msg": "User does not exist"}, 400
+                user.group_id = new_group.id
+                users_to_update.append(user)
+            for user in users_to_update:
+                user.save()
         new_group.save()
-
+        
         return {"success": True,
-                "userID": new_group.id,
+                "groupID": new_group.id,
                 "msg": "The user was successfully registered"}, 200
 
-@rest_api.route('/api/groups/edit')
-class EditGroup(Resource):
-    """
-       Edits a group by taking 'group_edit_model' input
-    """
-
+    @admin_only
     @rest_api.expect(group_edit_model, validate=True)
-    @token_required
-    def post(self, current_group):
-
+    def put(self):
+        """Update an existing group."""
         req_data = request.get_json()
+        _id = req_data.get("group_id")
+        _name = req_data.get("name") if "name" in req_data else None
+        _password = req_data.get("password") if "password" in req_data else None
+        _super_group = req_data.get("super_group") if "super_group" in req_data else None
+        _members = req_data.get("members_id") if "members_id" in req_data else None
 
-        _groupID = req_data.get("groupID")
-        _name = req_data.get("name")
-        _password = req_data.get("password")
-
-        group = Groups.get_by_id(_groupID)
-        if not group:
+        group = Groups.get_by_id(_id)
+        if group is None:
             return {"success": False,
                     "msg": "Group does not exist"}, 400
-
-        group.name = _name
-        group.set_password(_password)
+        if _name:
+            if Groups.get_by_name(_name) is not None:
+                return {"success": False,
+                        "msg": "Group name already taken"}, 400
+            group.name = _name
+        if _super_group:
+            group.super_group = _super_group
+        if _password:
+            group.set_password(_password)
+        if _members is not None:
+            users_to_update = []
+            for user_id in _members:
+                user = Users.get_by_id(user_id)
+                if user is None:
+                    return {"success": False,
+                            "msg": "User does not exist"}, 400
+                user.group_id = group.id
+                users_to_update.append(user)
+            for user in users_to_update:
+                user.save()
         group.save()
-
         return {"success": True,
-                "msg": "The group was successfully edited"}, 200
-
-@rest_api.route('/api/groups/delete')
-class DeleteGroup(Resource):
-    """
-       Deletes a group by taking 'group_delete_model' input
-    """
-
+                "groupID": group.id,
+                "msg": "The group was successfully updated"}, 200
+    
+    @admin_only
     @rest_api.expect(group_delete_model, validate=True)
-    @token_required
-    def post(self, current_group):
-
+    def delete(self):
+        """Delete a group."""
         req_data = request.get_json()
+        _id = req_data.get("group_id")
 
-        _groupID = req_data.get("groupID")
-
-        group = Groups.get_by_id(_groupID)
-        if not group:
+        group = Groups.get_by_id(_id)
+        if group is None:
             return {"success": False,
                     "msg": "Group does not exist"}, 400
-
         group.delete()
-
         return {"success": True,
                 "msg": "The group was successfully deleted"}, 200
 
+############## USERS #################
+@rest_api.route('/api/users')
+class UsersEP(Resource):
 
+    @rest_api.expect(user_get_model, validate=True)
+    @token_required
+    def get(self, current_group):
+
+        req_data = request.get_json()
+
+        _user_id = req_data.get("userID")
+
+        user = Users.get_by_id(_user_id)
+        if user.group_id != current_group.id and not current_group.super_group:
+            return {"success": False,
+                    "msg": "Unauthorized"}, 400
+        if not user:
+            return {"success": False,
+                    "msg": "User does not exist"}, 400
+
+        return {"success": True,
+                "user": user.toJSON()}, 200
+
+    @admin_only
+    @rest_api.expect(user_add_model, validate=True)
+    def post(self):
+        """Create a User."""
+        req_data = request.get_json()
+
+        _first_name = req_data.get("first_name")
+        _last_name = req_data.get("last_name")
+        _group_id = req_data.get("group_id")
+        group = Groups.get_by_id(_group_id)
+        if group is None:
+            return {"success": False,
+                    "msg": "Group does not exist"}, 400
+        user = Users.get_by_name(first_name=_first_name, last_name=_last_name)
+        if user is not None:
+            return {"success": False,
+                    "msg": "User name already taken"}, 400
+
+        user = Users(first_name=_first_name, last_name=_last_name, group_id=_group_id)
+        user.save()
+        return {"success": True,
+                "userID": user.id,
+                "msg": "The user was successfully registered"}, 200
+
+    @token_required
+    @rest_api.expect(user_edit_model, validate=True)
+    def put(self, current_group):
+        """Update a User."""
+        req_data = request.get_json()
+        _id = req_data.get("user_id")
+        _first_name = req_data.get("first_name") if "first_name" in req_data else None
+        _last_name = req_data.get("last_name") if "last_name" in req_data else None
+        _registration_status = req_data.get("registerationStatus").lower() if "registerationStatus" in req_data else None
+        _attendance_status = req_data.get("attendanceStatus").lower() if "attendanceStatus" in req_data else None
+        _dietary_restrictions = req_data.get("dietaryRestrictions").lower() if "dietaryRestrictions" in req_data else None
+        _dietary_info = req_data.get("dietaryInfo") if "dietaryInfo" in req_data else None
+        _song_request = req_data.get("songRequest") if "songRequest" in req_data else None
+        _group_id = req_data.get("group_id") if "group_id" in req_data else None
+        _camping = req_data.get("camping") if "camping" in req_data else None
+        _brunch = req_data.get("brunch") if "brunch" in req_data else None
+
+        user = Users.get_by_id(_id)
+        if user is None:
+            return {"success": False,
+                    "msg": "User does not exist"}, 400
+        if user.group_id != current_group.id and not current_group.super_group:
+            return {"success": False,
+                    "msg": "Not authorized"}, 400
+        if _first_name:
+            user.first_name = _first_name
+        if _last_name:
+            user.last_name = _last_name
+        if _registration_status:
+            match(_registration_status):
+                case "registered":
+                    user.registration_status = RegistrationStatus.REGISTERED
+                case "not registered":
+                    user.registration_status = RegistrationStatus.NOT_REGISTERED
+        if _attendance_status:
+            match(_attendance_status):
+                case "attending":
+                    user.attendance_status = AttendanceStatus.ATTENDING
+                case "not attending":
+                    user.attendance_status = AttendanceStatus.NOT_ATTENDING
+                case "unknown":
+                    user.attendance_status = AttendanceStatus.UNKNOWN
+        if _dietary_restrictions:
+            match(_dietary_restrictions):
+                case "vegetarian":
+                    user.dietary_restrictions = DietaryRestrictions.VEGETARIAN
+                case "vegan":
+                    user.dietary_restrictions = DietaryRestrictions.VEGAN
+                case "none":
+                    user.dietary_restrictions = DietaryRestrictions.NONE
+        if _dietary_info:
+            user.dietary_info = _dietary_info
+        if _song_request:
+            user.song_request = _song_request
+        if _group_id:
+            if Groups.get_by_id(_group_id) is None:
+                return {"success": False,
+                        "msg": "Group does not exist"}, 400
+            user.group_id = _group_id
+        if _camping is not None:
+            user.camping = _camping
+        if _brunch is not None:
+            user.brunch = _brunch
+        user.save()
+        return {"success": True,
+                "msg": "The user was successfully updated"}, 200
+
+    @admin_only
+    @rest_api.expect(user_delete_model, validate=True)
+    def delete(self):
+        """Delete a User."""
+        req_data = request.get_json()
+        _id = req_data.get("user_id")
+        user = Users.get_by_id(_id)
+        if user is None:
+            return {"success": False,
+                    "msg": "User does not exist"}, 400
+        user.delete()
+        return {"success": True,
+                "msg": "The user was successfully deleted"}, 200
+
+############ WISHES ###############
+create_wish_model = rest_api.model('CreateWishModel', {
+    "title": fields.String(required=True, min_length=0, max_length=64),
+    "price": fields.Integer(required=True),
+    "description": fields.String(required=False, min_length=0, max_length=512),
+    "picture_url": fields.String(required=False, min_length=0, max_length=100),
+    "quantity": fields.Integer(required=False)
+})
+update_wish_model = rest_api.model('CreateWishModel', {
+    "wish_id": fields.Integer(required=True),
+    "title": fields.String(required=False, min_length=0, max_length=64),
+    "price": fields.Integer(required=False),
+    "description": fields.String(required=False, min_length=0, max_length=512),
+    "picture_url": fields.String(required=False, min_length=0, max_length=100),
+    "quantity": fields.Integer(required=False)
+})
+delete_wish_model = rest_api.model('DeleteWishModel', {
+    "wish_id": fields.Integer(required=True)
+})
+# TODO that's nearly the same model as for deleting a wish, generic models yo?
+purchase_wish_model = rest_api.model('PurchaseWishModel', {
+    "wish_id": fields.Integer(required=True),
+    "is_purchasing": fields.Boolean(required=True)
+})
+@rest_api.route('/api/wishlist')
+class WishList(Resource):
+    """WishList endpoints."""
+    @admin_only
+    @rest_api.expect(create_wish_model, validate=True)
+    def post(self):
+        """Create new Wish."""
+        req_data = request.get_json()
+        _title = req_data.get("title")
+        _price = req_data.get("price")
+        _description = req_data.get("description") if "description" in req_data else None
+        _picture_url = req_data.get("picture_url") if "picture_url" in req_data else None
+        _quantity = req_data.get("quantity") if "quantity" in req_data else 1
+        wish = Wishes(
+            title=_title,
+            price=_price,
+            description=_description,
+            picture_url=_picture_url,
+            quantity=_quantity
+        )
+        wish.save()
+        return {"success": True,
+                "msg": "The wish was successfully created"}, 200
+    
+    @admin_only
+    @rest_api.expect(update_wish_model, validate=True)
+    def put(self):
+        """Update a Wish."""
+        req_data = request.get_json()
+        _id = req_data.get("wish_id")
+        _title = req_data.get("title") if "title" in req_data else None
+        _price = req_data.get("price") if "price" in req_data else None
+        _description = req_data.get("description") if "description" in req_data else None
+        _picture_url = req_data.get("picture_url") if "picture_url" in req_data else None
+        _quantity = req_data.get("quantity") if "quantity" in req_data else None
+        wish = Wishes.get_by_id(_id)
+        if wish is None:
+            return {"success": False,
+                    "msg": "Wish does not exist"}, 400
+        if _title:
+            wish.title = _title
+        if _price:
+            wish.price = _price
+        if _description:
+            wish.description = _description
+        if _picture_url:
+            wish.picture_url = _picture_url
+        if _quantity:
+            wish.quantity = _quantity
+        wish.save()
+        return {"success": True,
+                "msg": "The wish was successfully updated"}, 200
+
+    @admin_only
+    @rest_api.expect(delete_wish_model, validate=True)
+    def delete(self):
+        """Delete a Wish."""
+        req_data = request.get_json()
+        _id = req_data.get("wish_id")
+        wish = Wishes.get_by_id(_id)
+        if wish is None:
+            return {"success": False,
+                    "msg": "Wish does not exist"}, 400
+        wish.delete()
+        return {"success": True,
+                "msg": "The wish was successfully deleted"}, 200
+
+    
+    @token_required
+    def get(self, _):
+        """Get all wishes."""
+        wishes = Wishes.get_all()
+        return {"success": True,
+                "wishes": [
+            # TODO to add the quantity of items left ```wish.toDICT().update({"quantity_left": wish.quantity - len(wish.groups)})``` or smth like that you feel me!
+            # Border case when a group takes more than 1 Wish from the same category. Think about adding a quantity field in the association table mdr lolilol
+                wish.toDICT() for wish in wishes
+            ]}, 200
+    
+    @token_required
+    @rest_api.expect(purchase_wish_model, validate=True)
+    def put(self, current_group):
+        """Purchase/Unpurchase a Wish."""
+        req_data = request.get_json()
+        _id = req_data.get("wish_id")
+        _is_purchasing = req_data.get("is_purchasing")
+        wish = Wishes.get_by_id(_id)
+        if wish is None:
+            return {"success": False,
+                    "msg": "Wish does not exist"}, 404
+        if not _is_purchasing:
+            if current_group in wish.groups:
+                wish.groups.remove(current_group)
+                wish.save()
+                return {"success": True,
+                        "msg": "The wish was successfully unpurchased"}, 200
+            else:
+                return {"success": False,
+                        "msg": "You cannot unpurchase a wish you did not purchase"}, 400
+        else:
+            wish.groups.append(current_group)
+            wish.save()
+            return {"success": True,
+                    "msg": "The wish was successfully purchased"}, 200
+
+############ SINGLE METHODS ###############
 @rest_api.route('/api/groups/login')
 class Login(Resource):
     """
@@ -248,158 +565,18 @@ class Login(Resource):
                 "users": json_users
                 }, 200
 
-
-@rest_api.route('/api/users/add')
-class AddUser(Resource):
-    """
-       Creates a new user by taking 'user_add_model' input
-    """
-
-    @rest_api.expect(user_add_model, validate=True)
-    @token_required
-    def post(self, current_group):
-
-        req_data = request.get_json()
-
-        _first_name = req_data.get("first_name")
-        _last_name = req_data.get("last_name")
-        _group = req_data.get("group_id")
-
-        user_exists = Users.get_by_name(_first_name, _last_name)
-        if user_exists:
-            return {"success": False,
-                    "msg": "User already exists"}, 400
-
-        new_user = Users(first_name=_first_name, last_name=_last_name, group_id=_group)
-        new_user.save()
+@rest_api.route('/api/groups/getAllInfo')
+class GetAllInfo(Resource):
+    """Get all info about groups."""
+    @admin_only
+    def get(self):
+        groups = Groups.get_all()
+        response = {}
+        for g in groups:
+            response[g.name] = [member.toJSON() for member in g.users]
 
         return {"success": True,
-                "userID": new_user.id,
-                "msg": "The user was successfully registered"}, 200
-
-@rest_api.route('/api/user/edit')
-class EditUser(Resource):
-    """
-       Edit user by taking 'user_edit_model' input
-    """
-
-    @rest_api.expect(user_edit_model, validate=True)
-    @token_required
-    def post(self, current_group):
-
-        req_data = request.get_json()
-
-        _user_id = req_data.get("userID")
-        _first_name = req_data.get("first_name")
-        _last_name = req_data.get("last_name")
-        _registerationStatus = req_data.get("registerationStatus")
-        _addendingStatus = req_data.get("addendingStatus")
-        _dietaryRestrictions = req_data.get("dietaryRestrictions")
-        _dietaryInfo = req_data.get("dietaryInfo")
-        _songRequest = req_data.get("songRequest")
-        _group = req_data.get("group")
-
-        user_exists = Users.get_by_id(_user_id)
-        if not user_exists:
-            return {"success": False,
-                    "msg": "User does not exist"}, 400
-
-        # Check if user is in group
-        if(current_group.id != user_exists.groupId or not current_group.super_group):
-            return {"success": False, "msg": "User is not in group"}, 400
-
-        user_exists.first_name = _first_name
-        user_exists.last_name = _last_name
-        user_exists.registerationStatus = _registerationStatus
-        user_exists.addendingStatus = _addendingStatus
-        user_exists.dietaryRestrictions = _dietaryRestrictions
-        user_exists.dietaryInfo = _dietaryInfo
-        user_exists.songRequest = _songRequest
-        user_exists.group = _group
-        user_exists.save()
-
-        return {"success": True,
-                "msg": "The user was successfully edited"}, 200
-
-@rest_api.route('/api/self/register')
-class EditSelf(Resource):
-    """
-        Edit self by taking 'self_edit_model' input
-    """
-    @rest_api.expect(self_edit_model, validate=True)
-    @token_required
-    def post(self, current_group):
-    
-        req_data = request.get_json()
-    
-        _user_id = req_data.get("userID")
-        _registerationStatus = req_data.get("registerationStatus")
-        _addendingStatus = req_data.get("addendingStatus")
-        _dietaryRestrictions = req_data.get("dietaryRestrictions")
-        _dietaryInfo = req_data.get("dietaryInfo")
-        _songRequest = req_data.get("songRequest")
-    
-        user_exists = Users.get_by_id(_user_id)
-        if not user_exists:
-            return {"success": False,
-                    "msg": "User does not exist"}, 400
-    
-        user_exists.registerationStatus = _registerationStatus
-        user_exists.addendingStatus = _addendingStatus
-        user_exists.dietaryRestrictions = _dietaryRestrictions
-        user_exists.dietaryInfo = _dietaryInfo
-        user_exists.songRequest = _songRequest
-        user_exists.save()
-    
-        return {"success": True,
-                "msg": "The user was successfully edited"}, 200
-   
-
-@rest_api.route('/api/users/delete')
-class DeleteUser(Resource):
-    """
-       Delete user by taking 'user_delete_model' input
-    """
-
-    @rest_api.expect(user_delete_model, validate=True)
-    @token_required
-    def post(self, current_group):
-
-        req_data = request.get_json()
-
-        _user_id = req_data.get("userID")
-
-        user_exists = Users.get_by_id(_user_id)
-        if not user_exists:
-            return {"success": False,
-                    "msg": "User does not exist"}, 400
-
-        user_exists.delete()
-
-        return {"success": True,
-                "msg": "The user was successfully deleted"}, 200
-
-@rest_api.route('/api/users/get')
-class GetUser(Resource):
-    """
-       Get user by taking 'user_get_model' input
-    """
-
-    @rest_api.expect(user_get_model, validate=True)
-    @token_required
-    def get(self, current_group):
-
-        req_data = request.get_json()
-
-        _user_id = req_data.get("userID")
-
-        user_exists = Users.get_by_id(_user_id)
-        if not user_exists:
-            return {"success": False,
-                    "msg": "User does not exist"}, 400
-
-        return {"success": True,
-                "user": user_exists.toJSON()}, 200
+                    "data": json.dumps(response)}, 200
 
 @rest_api.route('/api/groups/getUsers')
 class GetGroupUsers(Resource):
