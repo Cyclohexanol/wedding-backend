@@ -165,6 +165,12 @@ def token_required(f):
 @rest_api.route('/api/groups')
 class GroupsEP(Resource):
 
+    @token_required
+    def get(self, current_group):
+        """Get own group."""
+        return {"success": True,
+                "group": current_group.to_dict()}, 200
+
     @admin_only
     @rest_api.expect(group_add_model, validate=True)
     def post(self):
