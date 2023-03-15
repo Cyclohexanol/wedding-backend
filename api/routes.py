@@ -13,7 +13,7 @@ from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import db, Users, Groups, JWTTokenBlocklist
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, JWTTokenBlocklist
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API")
@@ -302,9 +302,9 @@ class UsersEP(Resource):
         _id = req_data.get("user_id")
         _first_name = req_data.get("first_name") if "first_name" in req_data else None
         _last_name = req_data.get("last_name") if "last_name" in req_data else None
-        _registration_status = req_data.get("registerationStatus") if "registerationStatus" in req_data else None
-        _attendance_status = req_data.get("attendanceStatus") if "attendanceStatus" in req_data else None
-        _dietary_restrictions = req_data.get("dietaryRestrictions") if "dietaryRestrictions" in req_data else None
+        _registration_status = req_data.get("registerationStatus").lower() if "registerationStatus" in req_data else None
+        _attendance_status = req_data.get("attendanceStatus").lower() if "attendanceStatus" in req_data else None
+        _dietary_restrictions = req_data.get("dietaryRestrictions").lower() if "dietaryRestrictions" in req_data else None
         _dietary_info = req_data.get("dietaryInfo") if "dietaryInfo" in req_data else None
         _song_request = req_data.get("songRequest") if "songRequest" in req_data else None
         _group_id = req_data.get("group_id") if "group_id" in req_data else None
@@ -315,7 +315,7 @@ class UsersEP(Resource):
         if user is None:
             return {"success": False,
                     "msg": "User does not exist"}, 400
-        if user.group_id != current_group.id:
+        if user.group_id != current_group.id and not current_group.super_group:
             return {"success": False,
                     "msg": "Not authorized"}, 400
         if _first_name:
@@ -323,13 +323,27 @@ class UsersEP(Resource):
         if _last_name:
             user.last_name = _last_name
         if _registration_status:
-            # TODO Enum? How do we handle this? Pattern matching? ID?
-            user.registration_status = _registration_status
+            match(_registration_status):
+                case "registered":
+                    user.registration_status = RegistrationStatus.REGISTERED
+                case "not registered":
+                    user.registration_status = RegistrationStatus.NOT_REGISTERED
         if _attendance_status:
-            # TODO Enum? How do we handle this? Pattern matching? ID?
-            user.attendance_status = _attendance_status
+            match(_attendance_status):
+                case "attending":
+                    user.attendance_status = AttendanceStatus.ATTENDING
+                case "not attending":
+                    user.attendance_status = AttendanceStatus.NOT_ATTENDING
+                case "unknown":
+                    user.attendance_status = AttendanceStatus.UNKNOWN
         if _dietary_restrictions:
-            user.dietary_restrictions = _dietary_restrictions
+            match(_dietary_restrictions):
+                case "vegetarian":
+                    user.dietary_restrictions = DietaryRestrictions.VEGETARIAN
+                case "vegan":
+                    user.dietary_restrictions = DietaryRestrictions.VEGAN
+                case "none":
+                    user.dietary_restrictions = DietaryRestrictions.NONE
         if _dietary_info:
             user.dietary_info = _dietary_info
         if _song_request:
@@ -402,38 +416,17 @@ class Login(Resource):
                 "users": json_users
                 }, 200
 
-@rest_api.route('/api/self/register')
-class EditSelf(Resource):
-    """
-        Edit self by taking 'self_edit_model' input
-    """
-    @rest_api.expect(self_edit_model, validate=True)
-    @token_required
-    def post(self, current_group):
-    
-        req_data = request.get_json()
-    
-        _user_id = req_data.get("userID")
-        _registerationStatus = req_data.get("registerationStatus")
-        _addendingStatus = req_data.get("addendingStatus")
-        _dietaryRestrictions = req_data.get("dietaryRestrictions")
-        _dietaryInfo = req_data.get("dietaryInfo")
-        _songRequest = req_data.get("songRequest")
-    
-        user_exists = Users.get_by_id(_user_id)
-        if not user_exists:
-            return {"success": False,
-                    "msg": "User does not exist"}, 400
-    
-        user_exists.registerationStatus = _registerationStatus
-        user_exists.addendingStatus = _addendingStatus
-        user_exists.dietaryRestrictions = _dietaryRestrictions
-        user_exists.dietaryInfo = _dietaryInfo
-        user_exists.songRequest = _songRequest
-        user_exists.save()
-    
+@rest_api.route('/api/groups/getAllInfo')
+class GetAllInfo(Resource):
+    @admin_only
+    def get(self):
+        groups = Groups.get_all()
+        response = {}
+        for g in groups:
+            response[g.name] = [member for member in g.members]
+
         return {"success": True,
-                "msg": "The user was successfully edited"}, 200
+                    "data": groups.toJSON()}, 200
 
 @rest_api.route('/api/groups/getUsers')
 class GetGroupUsers(Resource):
