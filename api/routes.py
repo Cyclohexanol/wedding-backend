@@ -148,8 +148,6 @@ def token_required(f):
 
         except Exception as e:
             print (e.__class__.__name__)
-            print (e.message)
-			
             return {"success": False, "msg": "Token is invalid", "class": e.__class__.__name__}, 400
 
         return f(current_group, *args, **kwargs)
