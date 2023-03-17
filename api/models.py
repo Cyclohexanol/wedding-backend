@@ -105,11 +105,11 @@ class Users(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
     dietary_info = db.Column(db.String(512))
     song_request = db.Column(db.String(512))
-    camping_on_site = db.Column(db.Boolean, default=False, nullable=False)
-    brunch_sunday = db.Column(db.Boolean, default=False, nullable=False)
+    camping = db.Column(db.Boolean, default=False, nullable=False)
+    brunch = db.Column(db.Boolean, default=False, nullable=False)
 
     def __repr__(self):
-        return f"User {self.username}"
+        return f"{self.id=}, {self.first_name}, {self.camping}, {self.brunch}"
 
     def save(self):
         db.session.add(self)
@@ -149,8 +149,8 @@ class Users(db.Model):
         cls_dict['groupId'] = self.group_id
         cls_dict['dietaryInfo'] = self.dietary_info
         cls_dict['songRequest'] = self.song_request
-        cls_dict['camping'] = self.camping_on_site
-        cls_dict['brunch'] = self.brunch_sunday
+        cls_dict['camping'] = self.camping
+        cls_dict['brunch'] = self.brunch
 
         return cls_dict
 
