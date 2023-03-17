@@ -87,6 +87,7 @@ class Groups(db.Model):
         cls_dict = {}
         cls_dict['_id'] = self.id
         cls_dict['name'] = self.name
+        cls_dict['users'] = [user.toDICT() for user in self.users]
 
         return cls_dict
 
@@ -235,7 +236,7 @@ def init_users(*args, **kwargs):
         # Skip headers on first line
         next(csvreader)
         for row in csvreader:
-            group = Groups.query.filter_by(name=row[2]).first()
+            group = Groups.query.filter_by(name=row[2].lower()).first()
             if group is None:
                 print(f"GROUP {row[2]} NOT FOUND! SKIPPING")
                 continue

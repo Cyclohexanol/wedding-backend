@@ -9,7 +9,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from .routes import rest_api
-from .models import db, Groups, Users
+from .models import db, Groups, Users, Wishes
 
 app = Flask(__name__)
 

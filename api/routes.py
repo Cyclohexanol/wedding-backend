@@ -166,10 +166,10 @@ def token_required(f):
 class GroupsEP(Resource):
 
     @token_required
-    def get(self, current_group):
+    def get(current_group, self):
         """Get own group."""
         return {"success": True,
-                "group": current_group.to_dict()}, 200
+                "group": current_group.toDICT()}, 200
 
     @admin_only
     @rest_api.expect(group_add_model, validate=True)
@@ -274,7 +274,7 @@ class UsersEP(Resource):
 
     @rest_api.expect(user_get_model, validate=True)
     @token_required
-    def get(self, current_group):
+    def get(current_group, self):
 
         req_data = request.get_json()
 
@@ -317,7 +317,7 @@ class UsersEP(Resource):
 
     @token_required
     @rest_api.expect(user_edit_model, validate=True)
-    def put(self, current_group):
+    def put(current_group, self):
         """Update a User."""
         req_data = request.get_json()
         _id = req_data.get("user_id")
@@ -501,7 +501,7 @@ class WishList(Resource):
     
     @token_required
     @rest_api.expect(purchase_wish_model, validate=True)
-    def put(self, current_group):
+    def put(current_group, self):
         """Purchase/Unpurchase a Wish."""
         req_data = request.get_json()
         _id = req_data.get("wish_id")
@@ -586,7 +586,7 @@ class GetGroupUsers(Resource):
     
     @rest_api.expect(group_get_users_model, validate=True)
     @token_required
-    def get(self, current_group):
+    def get(current_group, self):
 
         req_data = request.get_json()
 
@@ -609,7 +609,7 @@ class GetGroups(Resource):
     """
 
     @token_required
-    def get(self, current_group):
+    def get(current_group, _):
 
         groups = Groups.get_all()
         json_groups = [g.toJSON() for g in groups]
