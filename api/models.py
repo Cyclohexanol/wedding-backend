@@ -88,6 +88,7 @@ class Groups(db.Model):
         cls_dict['_id'] = self.id
         cls_dict['name'] = self.name
         cls_dict['users'] = [user.toDICT() for user in self.users]
+        cls_dict['cart'] = [wish.toDICT() for wish in self.wishes]
 
         return cls_dict
 
@@ -169,8 +170,23 @@ class Wishes(db.Model):
     groups = db.relationship("Groups", secondary="wishes_groups", back_populates="wishes", lazy="dynamic")
 
     @classmethod
+    def get_by_id(cls, id):
+        return cls.query.get_or_404(id)
+
+    @classmethod
     def get_all(cls):
         return cls.query.all()
+
+    def get_quantity_left(self):
+        quantityTmp = self.quantity
+        wish_group = wishes_groups.query.filter_by(wish_id=self.id).all()
+        # print(wish_group)
+        if len(wish_group) > 0:
+            for rel in wish_group:
+                print(quantityTmp)
+                quantityTmp -= rel.quantity
+                print(f"{rel.quantity=} -- {quantityTmp=}")
+        return quantityTmp if quantityTmp > 0 else 0 # TODO check for concurrent access
 
     def delete(self):
         db.session.delete(self)
@@ -186,9 +202,9 @@ class Wishes(db.Model):
         cls_dict['title'] = self.title
         cls_dict['description'] = self.description
         cls_dict['pictureUrl'] = self.picture_url
-        cls_dict['quantity'] = self.quantity
+        cls_dict['quantity'] = self.get_quantity_left()
         cls_dict['price'] = self.price
-        cls_dict['groups'] = [group.toDICT() for group in self.groups]
+        # cls_dict['groups'] = [group.toDICT() for group in self.groups] TODO no need for now, taking from group -> cart
 
         return cls_dict
 
@@ -248,13 +264,37 @@ def init_users(*args, **kwargs):
             user.save()
 
 # Association table for n to n relationship between Wishes and Groups
-wishes_groups = db.Table(
-    'wishes_groups',
-    db.Model.metadata,
-    db.Column('wish_id', db.Integer, db.ForeignKey('wishes.id'), primary_key=True),
-    db.Column('group_id', db.Integer, db.ForeignKey('groups.id'), primary_key=True)
-)
+class wishes_groups(db.Model):
+    wish_id = db.Column(db.Integer, db.ForeignKey('wishes.id'), primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), primary_key=True)
+    quantity = db.Column(db.Integer, nullable=False)
 
+    # wish = db.relationship("Wishes", back_populates="groups")
+    # group = db.relationship("Groups", back_populates="wishes")
+
+    def __repr__(self):
+        return f"wishes_groups('{self.wish_id}', '{self.group_id}', '{self.quantity}')"
+    
+
+    def toDICT(self):
+        cls_dict = {}
+        cls_dict['wishId'] = self.wish_id
+        cls_dict['groupId'] = self.group_id
+        cls_dict['quantity'] = self.quantity
+
+        return cls_dict
+
+    def toJSON(self):
+
+        return self.toDICT()
+
+# wishes_groups = db.Table(
+#     'wishes_groups',
+#     db.Model.metadata,
+#     db.Column('wish_id', db.Integer, db.ForeignKey('wishes.id'), primary_key=True),
+#     db.Column('group_id', db.Integer, db.ForeignKey('groups.id'), primary_key=True),
+#     db.Column('quantity', db.Integer, nullable=False)
+# )
 
 class JWTTokenBlocklist(db.Model):
     id = db.Column(db.Integer(), primary_key=True)

@@ -14,7 +14,7 @@ from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API")
@@ -504,10 +504,12 @@ class WishList(Resource):
         req_data = request.get_json()
         _id = req_data.get("wish_id")
         _is_purchasing = req_data.get("is_purchasing")
+        _quantity = req_data.get("quantity")
         wish = Wishes.get_by_id(_id)
         if wish is None:
             return {"success": False,
                     "msg": "Wish does not exist"}, 404
+        # TODO check toussa wesh
         if not _is_purchasing:
             if current_group in wish.groups:
                 wish.groups.remove(current_group)
@@ -518,7 +520,20 @@ class WishList(Resource):
                 return {"success": False,
                         "msg": "You cannot unpurchase a wish you did not purchase"}, 400
         else:
-            wish.groups.append(current_group)
+            if current_group in wish.groups: # Adding more item to already present relationship
+                wish_group = wishes_groups.query.filter_by(wish_id=wish.id, group_id=current_group.id).first()
+                if wish_group.quantity + _quantity <= wish.quantity:
+                    wish_group.quantity += _quantity
+                else:
+                    return {"success": False,
+                            "msg": "You cannot purchase more than the quantity of the wish"}, 400
+            else: # Does not have item in cart yet
+                if _quantity <= wish.get_quantity_left():
+                    wg = wishes_groups(wish_id=wish.id, group_id=current_group.id, quantity=_quantity)    
+                    db.session.add(wg)
+                else:
+                    return {"success": False,
+                            "msg": "You cannot purchase more than the quantity of the wish"}, 400
             wish.save()
             return {"success": True,
                     "msg": "The wish was successfully purchased"}, 200
