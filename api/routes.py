@@ -14,7 +14,7 @@ from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API")
@@ -646,3 +646,29 @@ class Pay(Resource):
         current_group.save()
         return {"success": True,
                 "msg": "The group was successfully paid"}, 200
+
+@rest_api.route('/api/payment-info')
+class GetPaymentInfo(Resource):
+    """
+    Get the first entry of the PaymentInfo table.
+    """
+
+    @token_required
+    def get(current_group, _):
+        payment_info = PaymentInfo.query.first()
+
+        if payment_info:
+            response = {
+                "success": True,
+                "payment_info": {
+                    "id": payment_info.id,
+                    "name": payment_info.name,
+                    "address": payment_info.address,
+                    "iban": payment_info.iban,
+                    "swift": payment_info.swift,
+                    "bank": payment_info.bank,
+                }
+            }
+            return response, 200
+        else:
+            return {"success": False, "msg": "No payment info available"}, 404
