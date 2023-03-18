@@ -88,7 +88,11 @@ class Groups(db.Model):
         cls_dict['_id'] = self.id
         cls_dict['name'] = self.name
         cls_dict['users'] = [user.toDICT() for user in self.users]
-        cls_dict['cart'] = [wish.toDICT() for wish in self.wishes]
+        cart_wishes = [wish.toDICT() for wish in self.wishes]
+        for wish in cart_wishes:
+            wg = wishes_groups.get_by_ids(wish['_id'], self.id)
+            wish['quantity'] = wg.quantity
+        cls_dict['cart'] = cart_wishes
 
         return cls_dict
 
@@ -180,12 +184,9 @@ class Wishes(db.Model):
     def get_quantity_left(self):
         quantityTmp = self.quantity
         wish_group = wishes_groups.query.filter_by(wish_id=self.id).all()
-        # print(wish_group)
         if len(wish_group) > 0:
             for rel in wish_group:
-                print(quantityTmp)
                 quantityTmp -= rel.quantity
-                print(f"{rel.quantity=} -- {quantityTmp=}")
         return quantityTmp if quantityTmp > 0 else 0 # TODO check for concurrent access
 
     def delete(self):
@@ -271,6 +272,13 @@ class wishes_groups(db.Model):
 
     # wish = db.relationship("Wishes", back_populates="groups")
     # group = db.relationship("Groups", back_populates="wishes")
+
+    @classmethod
+    def get_by_ids(cls, wish_id, group_id):
+        records = cls.query.filter_by(wish_id=wish_id, group_id=group_id)
+        if records.count() > 1:
+            print("DB ERROR: Multiple records found for wish_id and group_id")
+        return records.first()
 
     def __repr__(self):
         return f"wishes_groups('{self.wish_id}', '{self.group_id}', '{self.quantity}')"

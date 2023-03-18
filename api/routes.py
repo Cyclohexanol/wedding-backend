@@ -499,7 +499,7 @@ class WishList(Resource):
     
     @token_required
     @rest_api.expect(purchase_wish_model, validate=True)
-    def put(current_group, self):
+    def patch(current_group, self):
         """Purchase/Unpurchase a Wish."""
         req_data = request.get_json()
         _id = req_data.get("wish_id")
@@ -521,9 +521,9 @@ class WishList(Resource):
                         "msg": "You cannot unpurchase a wish you did not purchase"}, 400
         else:
             if current_group in wish.groups: # Adding more item to already present relationship
-                wish_group = wishes_groups.query.filter_by(wish_id=wish.id, group_id=current_group.id).first()
-                if wish_group.quantity + _quantity <= wish.quantity:
-                    wish_group.quantity += _quantity
+                wish_group = wishes_groups.get_by_ids(wish_id=wish.id, group_id=current_group.id)
+                if _quantity <= wish.quantity:
+                    wish_group.quantity = _quantity
                 else:
                     return {"success": False,
                             "msg": "You cannot purchase more than the quantity of the wish"}, 400
