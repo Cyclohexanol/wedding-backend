@@ -672,3 +672,18 @@ class GetPaymentInfo(Resource):
             return response, 200
         else:
             return {"success": False, "msg": "No payment info available"}, 404
+
+@rest_api.route('/api/users/getAll')
+class GetAllUsers(Resource):
+    """
+       Get all users
+    """
+
+    @token_required
+    def get(current_user, _):
+
+        users = Users.get_all()
+        json_users = [u.toJSON() for u in users]
+
+        return {"success": True,
+                "users": json_users}, 200
