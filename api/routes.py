@@ -629,3 +629,20 @@ class GetGroups(Resource):
 
         return {"success": True,
                 "groups": json_groups}, 200
+
+pay_model = rest_api.model('Pay', {
+    'paid': fields.Boolean(required=True, description='True if paid, False if not paid'),
+})
+
+@rest_api.route('/api/pay')
+class Pay(Resource):
+    @token_required
+    @rest_api.expect(pay_model, validate=True)
+    def patch(current_group, self):
+        """Pay for the group."""
+        req_data = request.get_json()
+        _paid = req_data.get("paid")
+        current_group.paid = _paid
+        current_group.save()
+        return {"success": True,
+                "msg": "The group was successfully paid"}, 200

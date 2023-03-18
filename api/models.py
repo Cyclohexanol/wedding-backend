@@ -38,7 +38,8 @@ class Groups(db.Model):
     users = db.relationship("Users", backref="group", lazy=True)
     super_group = db.Column(db.Boolean, default=False, nullable=False)
     wishes = db.relationship("Wishes", secondary="wishes_groups", back_populates="groups", lazy="dynamic")
-    
+    paid = db.Column(db.Boolean, default=False, nullable=False)
+
     jwt_auth_active = db.Column(db.Boolean())
 
     def set_password(self, password):
@@ -93,6 +94,8 @@ class Groups(db.Model):
             wg = wishes_groups.get_by_ids(wish['_id'], self.id)
             wish['quantity'] = wg.quantity
         cls_dict['cart'] = cart_wishes
+        cls_dict['paid'] = self.paid
+        cls_dict['superGroup'] = self.super_group
 
         return cls_dict
 
@@ -212,6 +215,36 @@ class Wishes(db.Model):
     def toJSON(self):
 
         return self.toDICT()
+
+class PaymentInfo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    address = db.Column(db.String(512), nullable=False)
+    iban = db.Column(db.String(32), nullable=False)
+    swift = db.Column(db.String(32), nullable=False)
+    bank = db.Column(db.String(64), nullable=False)
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+
+@event.listens_for(PaymentInfo.__table__, 'after_create')
+def init_payment_info(*args, **kwargs):
+    # Read ./data/info.csv to populate default data
+    with open("./data/info.csv", "r") as f:
+        csvreader = csv.reader(f)
+        # Skip headers on first line
+        next(csvreader)
+        for row in csvreader:
+            pi = PaymentInfo(
+                name=row[0],
+                address=row[1],
+                iban=row[2],
+                swift=row[3],
+                bank=row[4]
+            )
+            pi.save()
+
 
 @event.listens_for(Wishes.__table__, 'after_create')
 def init_wishes(*args, **kwargs):
