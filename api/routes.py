@@ -17,7 +17,7 @@ import jwt
 from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo
 from .config import BaseConfig
 
-rest_api = Api(version="1.0", title="Saamb API")
+rest_api = Api(version="1.0", title="Saamb API", doc=False)
 
 
 """
