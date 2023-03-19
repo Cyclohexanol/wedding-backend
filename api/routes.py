@@ -178,7 +178,7 @@ class GroupsEP(Resource):
         _name = req_data.get("name").lower()
         _password = req_data.get("password")
         if "super_group" in req_data:
-            _super_group = req_data.get("super_group")
+            _super_group = req_data.get("superGroup")
         else:
             _super_group = False
         if "members_ids" in req_data:
