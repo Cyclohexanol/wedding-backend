@@ -145,6 +145,10 @@ class Users(db.Model):
     def get_all(cls):
         return cls.query.all()
 
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
     def toDICT(self):
 
         cls_dict = {}
