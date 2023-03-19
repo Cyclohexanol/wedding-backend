@@ -1,7 +1,6 @@
 FROM python:3.11
 
 COPY . .
-COPY /root/data ./data
 
 
 # set environment variables
