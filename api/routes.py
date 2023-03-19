@@ -319,8 +319,8 @@ class UsersEP(Resource):
         """Update a User."""
         req_data = request.get_json()
         _id = req_data.get("user_id")
-        _first_name = req_data.get("first_name") if "first_name" in req_data else None
-        _last_name = req_data.get("last_name") if "last_name" in req_data else None
+        _first_name = req_data.get("firstName") if "firstName" in req_data else None
+        _last_name = req_data.get("lastName") if "lastName" in req_data else None
         _registration_status = req_data.get("registerationStatus").lower() if "registerationStatus" in req_data else None
         _attendance_status = req_data.get("attendanceStatus").lower() if "attendanceStatus" in req_data else None
         _dietary_restrictions = req_data.get("dietaryRestrictions").lower() if "dietaryRestrictions" in req_data else None
