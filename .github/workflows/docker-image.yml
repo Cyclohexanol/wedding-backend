@@ -1,4 +1,4 @@
-name: Create and publish a Docker image
+name: Build and Deploy the API
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push-image:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,3 +41,27 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Deploy package to digitalocean
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: 22
+          passphrase: ""
+          script: |
+            docker stop $(docker ps -a -q)
+            docker pull ghcr.io/cyclohexanol/wedding-backend:develop
+            docker run -dit -p 5000:5005 ghcr.io/cyclohexanol/wedding-backend:develop
