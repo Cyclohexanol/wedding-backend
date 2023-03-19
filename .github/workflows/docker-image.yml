@@ -64,4 +64,4 @@ jobs:
           script: |
             docker stop $(docker ps -a -q)
             docker pull ghcr.io/cyclohexanol/wedding-backend:develop
-            docker run -dit -p 5000:5005 ghcr.io/cyclohexanol/wedding-backend:develop
+            docker run -dit -p 5000:5005 -v /root/data:/app/data ghcr.io/cyclohexanol/wedding-backend:develop
