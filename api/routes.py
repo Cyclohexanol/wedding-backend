@@ -14,7 +14,7 @@ from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API")
@@ -32,28 +32,28 @@ login_model = rest_api.model('LoginModel', {
 
 user_edit_model = rest_api.model('UserEditModel', {
     "user_id": fields.Integer(required=True),
-    "first_name": fields.String(required=False, min_length=2, max_length=32),
-    "last_name": fields.String(required=False, min_length=2, max_length=32),
+    "firstName": fields.String(required=False, min_length=2, max_length=32),
+    "lastName": fields.String(required=False, min_length=2, max_length=32),
     "registerationStatus": fields.String(required=False, min_length=0, max_length=32),
     "attendanceStatus": fields.String(required=False, min_length=0, max_length=32),
     "dietaryRestrictions": fields.String(required=False, min_length=0, max_length=32),
     "dietaryInfo": fields.String(required=False, min_length=0, max_length=512),
     "songRequest": fields.String(required=False, min_length=0, max_length=512),
-    "group_id": fields.Integer(required=False),
+    "groupId": fields.Integer(required=False),
     "camping": fields.Boolean(required=False),
     "brunch": fields.Boolean(required=False),
 })
 
 user_add_model = rest_api.model('UserAddModel', {
-    "first_name": fields.String(required=True, min_length=2, max_length=32),
-    "last_name": fields.String(required=True, min_length=2, max_length=32),
+    "firstName": fields.String(required=True, min_length=2, max_length=32),
+    "lastName": fields.String(required=True, min_length=2, max_length=32),
     "group_id": fields.Integer(required=True)
 })
 
 group_add_model = rest_api.model('GroupAddModel', {
     "name": fields.String(required=True, min_length=2, max_length=32),
     "password": fields.String(required=True, min_length=10, max_length=20),
-    "super_group": fields.Boolean(required=False),
+    "superGroup": fields.Boolean(required=False),
     "members_id": fields.List(fields.Integer, required=False)
 })
 
@@ -61,7 +61,7 @@ group_edit_model = rest_api.model('GroupEditModel', {
     "group_id": fields.Integer(required=True),
     "name": fields.String(required=True, min_length=2, max_length=32),
     "password": fields.String(required=True, min_length=10, max_length=20),
-    "super_group": fields.Boolean(required=False),
+    "superGroup": fields.Boolean(required=False),
     "members_id": fields.List(fields.Integer, required=False)
 })
 
@@ -219,7 +219,7 @@ class GroupsEP(Resource):
         _id = req_data.get("group_id")
         _name = req_data.get("name").lower() if "name" in req_data else None
         _password = req_data.get("password") if "password" in req_data else None
-        _super_group = req_data.get("super_group") if "super_group" in req_data else None
+        _superGroup = req_data.get("superGroup") if "superGroup" in req_data else None
         _members = req_data.get("members_id") if "members_id" in req_data else None
 
         group = Groups.get_by_id(_id)
@@ -231,8 +231,8 @@ class GroupsEP(Resource):
                 return {"success": False,
                         "msg": "Group name already taken"}, 400
             group.name = _name
-        if _super_group:
-            group.super_group = _super_group
+        if _superGroup:
+            group.super_group = _superGroup
         if _password:
             group.set_password(_password)
         if _members is not None:
@@ -295,8 +295,8 @@ class UsersEP(Resource):
         """Create a User."""
         req_data = request.get_json()
 
-        _first_name = req_data.get("first_name")
-        _last_name = req_data.get("last_name")
+        _first_name = req_data.get("firstName")
+        _last_name = req_data.get("lastName")
         _group_id = req_data.get("group_id")
         group = Groups.get_by_id(_group_id)
         if group is None:
@@ -319,8 +319,8 @@ class UsersEP(Resource):
         """Update a User."""
         req_data = request.get_json()
         _id = req_data.get("user_id")
-        _first_name = req_data.get("first_name") if "first_name" in req_data else None
-        _last_name = req_data.get("last_name") if "last_name" in req_data else None
+        _firstName = req_data.get("firstName") if "firstName" in req_data else None
+        _lastName = req_data.get("lastName") if "lastName" in req_data else None
         _registration_status = req_data.get("registerationStatus").lower() if "registerationStatus" in req_data else None
         _attendance_status = req_data.get("attendanceStatus").lower() if "attendanceStatus" in req_data else None
         _dietary_restrictions = req_data.get("dietaryRestrictions").lower() if "dietaryRestrictions" in req_data else None
@@ -337,10 +337,10 @@ class UsersEP(Resource):
         if user.group_id != current_group.id and not current_group.super_group:
             return {"success": False,
                     "msg": "Not authorized"}, 400
-        if _first_name:
-            user.first_name = _first_name
-        if _last_name:
-            user.last_name = _last_name
+        if _firstName:
+            user.first_name = _firstName
+        if _lastName:
+            user.last_name = _lastName
         if _registration_status:
             match(_registration_status):
                 case "registered":
@@ -646,3 +646,44 @@ class Pay(Resource):
         current_group.save()
         return {"success": True,
                 "msg": "The group was successfully paid"}, 200
+
+@rest_api.route('/api/payment-info')
+class GetPaymentInfo(Resource):
+    """
+    Get the first entry of the PaymentInfo table.
+    """
+
+    @token_required
+    def get(current_group, _):
+        payment_info = PaymentInfo.query.first()
+
+        if payment_info:
+            response = {
+                "success": True,
+                "payment_info": {
+                    "id": payment_info.id,
+                    "name": payment_info.name,
+                    "address": payment_info.address,
+                    "iban": payment_info.iban,
+                    "swift": payment_info.swift,
+                    "bank": payment_info.bank,
+                }
+            }
+            return response, 200
+        else:
+            return {"success": False, "msg": "No payment info available"}, 404
+
+@rest_api.route('/api/users/getAll')
+class GetAllUsers(Resource):
+    """
+       Get all users
+    """
+
+    @token_required
+    def get(current_user, _):
+
+        users = Users.get_all()
+        json_users = [u.toJSON() for u in users]
+
+        return {"success": True,
+                "users": json_users}, 200

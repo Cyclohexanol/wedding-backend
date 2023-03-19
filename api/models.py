@@ -35,7 +35,7 @@ class Groups(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32), unique=True, nullable=False)
     password = db.Column(db.String(128), nullable=False)
-    users = db.relationship("Users", backref="group", lazy=True)
+    users = db.relationship("Users", backref="group", lazy=True, cascade="all, delete-orphan")
     super_group = db.Column(db.Boolean, default=False, nullable=False)
     wishes = db.relationship("Wishes", secondary="wishes_groups", back_populates="groups", lazy="dynamic")
     paid = db.Column(db.Boolean, default=False, nullable=False)
@@ -144,6 +144,10 @@ class Users(db.Model):
     @classmethod
     def get_all(cls):
         return cls.query.all()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
 
     def toDICT(self):
 
