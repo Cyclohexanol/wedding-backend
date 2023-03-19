@@ -70,4 +70,4 @@ jobs:
               docker rm $CONTAINER_ID
             fi
             docker pull ghcr.io/cyclohexanol/wedding-backend:develop
-            docker run -dit -p 5000:5005 -v /root/data:/data --name -v /root/db:/app/db $CONTAINER_NAME ghcr.io/cyclohexanol/wedding-backend:develop
+            docker run -dit -p 5000:5005 -v /root/data:/data -v /root/db:/app/db --name $CONTAINER_NAME ghcr.io/cyclohexanol/wedding-backend:develop
