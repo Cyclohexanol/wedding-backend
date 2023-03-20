@@ -211,6 +211,7 @@ class Wishes(db.Model):
         cls_dict['description'] = self.description
         cls_dict['pictureUrl'] = self.picture_url
         cls_dict['quantity'] = self.get_quantity_left()
+        cls_dict['totalQuantity'] = self.quantity
         cls_dict['price'] = self.price
         # cls_dict['groups'] = [group.toDICT() for group in self.groups] TODO no need for now, taking from group -> cart
 

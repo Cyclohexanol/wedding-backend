@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
+    "\\.github",
+    "\\.github\\workflows",
     "\\api"
   ],
-  "SelectedNode": "\\api\\models.py",
+  "SelectedNode": "\\api\\routes.py",
   "PreviewInSolutionExplorer": false
 }
