@@ -687,3 +687,29 @@ class GetAllUsers(Resource):
 
         return {"success": True,
                 "users": json_users}, 200
+
+cart_clear_model = rest_api.model('CartClearModel', {
+    "group_id": fields.Integer(required=True)
+})
+
+@rest_api.route('/api/groups/cartClear')
+class CartClear(Resource):
+    @token_required
+    @rest_api.expect(cart_clear_model, validate=True)
+    def delete(current_group, self):
+        """Clear the cart of a group and change its paid variable to false."""
+        req_data = request.get_json()
+        _group_id = req_data.get("group_id")
+        group = Groups.get_by_id(_group_id)
+        if group is None:
+            return {"success": False,
+                    "msg": "Group not found."}, 404
+
+        for wish in group.wishes:
+            wishes_group = wishes_groups.get_by_ids(wish.id, group.id)
+            db.session.delete(wishes_group)
+        group.paid = False
+        db.session.commit()
+
+        return {"success": True,
+                "msg": "The cart of the group was successfully cleared and its paid variable was changed to false."}, 200
