@@ -196,6 +196,15 @@ class Wishes(db.Model):
                 quantityTmp -= rel.quantity
         return quantityTmp if quantityTmp > 0 else 0 # TODO check for concurrent access
 
+     def get_quantity_available(self):
+        quantityTmp = self.quantity
+        wish_group = wishes_groups.query.all()
+        if len(wish_group) > 0:
+            for rel in wish_group:
+                quantityTmp -= rel.quantity
+        return quantityTmp if quantityTmp > 0 else 0 # TODO check for concurrent access
+
+
     def delete(self):
         db.session.delete(self)
         db.session.commit()
@@ -212,6 +221,7 @@ class Wishes(db.Model):
         cls_dict['pictureUrl'] = self.picture_url
         cls_dict['quantity'] = self.get_quantity_left()
         cls_dict['totalQuantity'] = self.quantity
+        cls_dict['available'] = self.get_quantity_available()
         cls_dict['price'] = self.price
         # cls_dict['groups'] = [group.toDICT() for group in self.groups] TODO no need for now, taking from group -> cart
 
