@@ -198,7 +198,7 @@ class Wishes(db.Model):
 
     def get_quantity_available(self):
         quantityTmp = self.quantity
-        wish_group = wishes_groups.query.all()
+        wish_group = wishes_groups.query.filter_by(wish_id=self.id).all()
         if len(wish_group) > 0:
             for rel in wish_group:
                 quantityTmp -= rel.quantity
