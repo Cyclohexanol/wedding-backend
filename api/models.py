@@ -196,7 +196,7 @@ class Wishes(db.Model):
                 quantityTmp -= rel.quantity
         return quantityTmp if quantityTmp > 0 else 0 # TODO check for concurrent access
 
-     def get_quantity_available(self):
+    def get_quantity_available(self):
         quantityTmp = self.quantity
         wish_group = wishes_groups.query.all()
         if len(wish_group) > 0:
