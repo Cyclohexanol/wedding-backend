@@ -743,6 +743,8 @@ class QuestionResource(Resource):
         req_data = request.json
         _correct_option = req_data.get("correctOption") if "correctOption" in req_data else None
         _difficulty = req_data.get("difficulty") if "difficulty" in req_data else None
+
+
         # Create a new question with default values
         new_question = Question(
             question_text=f"question-{id}.text",
@@ -750,9 +752,17 @@ class QuestionResource(Resource):
             option_b=f"question-{id}.option-b",
             option_c=f"question-{id}.option-c",
             option_d=f"question-{id}.option-d",
-            correct_option=_correct_option,
+            correct_option=_correct_option.toLower(),
             difficulty=_difficulty if _difficulty else Difficulty.EASY
         )
+        if _difficulty:
+            match(_difficulty):
+                case "easy":
+                    new_question.difficulty = Difficulty.EASY
+                case "hard":
+                    new_question.difficulty = Difficulty.HARD
+                case _:
+                    new_question.difficulty = Difficulty.EASY
 
         # Add the new question to the database
         db.session.add(new_question)
@@ -798,9 +808,15 @@ class QuestionResource(Resource):
         if _option_d:
             question.option_d = _option_d
         if _correct_option:
-            question.correct_option = _correct_option
+            question.correct_option = _correct_option.toLower()
         if _difficulty:
-            question.difficulty = Difficulty(_difficulty)
+            match(_difficulty):
+                case "easy":
+                    question.difficulty = Difficulty.EASY
+                case "hard":
+                    question.difficulty = Difficulty.HARD
+                case _:
+                    question.difficulty = Difficulty.EASY
 
         db.session.commit()
 
