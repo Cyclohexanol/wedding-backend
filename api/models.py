@@ -409,7 +409,7 @@ class UserQuiz(db.Model):
     score = db.Column(db.Integer, nullable=False, default=0)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
-    user = db.relationship("Users", backref=db.backref("quizzes", lazy=True))
+    user = db.relationship("Users", backref=db.backref("user_quizzes", lazy=True))
     current_question_index = db.Column(db.Integer, nullable=False, default=0)
 
     def set_current_question_index(self, index):
