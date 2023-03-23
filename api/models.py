@@ -366,7 +366,7 @@ class JWTTokenBlocklist(db.Model):
         db.session.commit()
 
 
-class Difficulty(enum.Enum):
+class Difficulty(str, enum.Enum):
     EASY = "Easy"
     HARD = "Hard"
 
