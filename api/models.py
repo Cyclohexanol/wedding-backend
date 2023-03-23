@@ -386,16 +386,16 @@ class Question(db.Model):
     def toDICT(self, reveal_answer=False):
         question_dict = {
             'id': self.id,
-            'question_text': self.question_text,
-            'option_a': self.option_a,
-            'option_b': self.option_b,
-            'option_c': self.option_c,
-            'option_d': self.option_d,
+            'questionText': self.question_text,
+            'optionA': self.option_a,
+            'optionB': self.option_b,
+            'optionC': self.option_c,
+            'optionD': self.option_d,
             'difficulty': self.difficulty
         }
 
         if reveal_answer:
-            question_dict['correct_option'] = self.correct_option
+            question_dict['correctOption'] = self.correct_option
 
         return question_dict
 
