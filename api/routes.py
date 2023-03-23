@@ -848,4 +848,4 @@ class GetAllQuestions(Resource):
         questions = Question.get_all()
 
         return {"success": True,
-                "questions": [question.toDICT() for question in questions]}, 200
+                "questions": [question.toDICT(True) for question in questions]}, 200
