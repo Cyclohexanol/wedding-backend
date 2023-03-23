@@ -383,7 +383,7 @@ class Question(db.Model):
     def is_correct(self, option):
         return option.lower() == self.correct_option.lower()
 
-    def to_dict(self, reveal_answer=False):
+    def toDICT(self, reveal_answer=False):
         question_dict = {
             'id': self.id,
             'question_text': self.question_text,
@@ -402,6 +402,10 @@ class Question(db.Model):
     @classmethod
     def get_by_id(cls, id):
         return cls.query.get_or_404(id)
+
+    @classmethod
+    def get_all(cls):
+        return cls.query.all()
 
 class UserQuiz(db.Model):
     id = db.Column(db.Integer, primary_key=True)

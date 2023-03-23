@@ -830,7 +830,7 @@ class GetAllQuestions(Resource):
     def get(current_user, _):
 
         question = Question.get_all()
-        json_questions = [q.toJSON() for q in question]
+        json_questions = [q.toDICT(True).toJSON() for q in question]
 
         return {"success": True,
                 "questions": json_questions}, 200
