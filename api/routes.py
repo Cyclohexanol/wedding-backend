@@ -725,9 +725,13 @@ question_edit_model = rest_api.model('QuestionEditModel', {
     'difficulty': fields.String(required=False, description='Difficulty level')
 })
 
-question_add_model = rest_api.model('QuestionEditModel', {
+question_add_model = rest_api.model('QuestionAddModel', {
     'correctOption': fields.String(required=False, description='Correct option'),
     'difficulty': fields.String(required=False, description='Difficulty level')
+})
+
+delete_question_model = rest_api.model('QuestionDeleteModel', {
+    'question_id': fields.Integer(description='Question ID')
 })
 
 @rest_api.route('/api/questions')
@@ -801,6 +805,20 @@ class QuestionResource(Resource):
         db.session.commit()
 
         return {"success": True, "msg": "The question was successfully updated"}, 200
+
+    @admin_only
+    @rest_api.expect(delete_question_model, validate=True)
+    def delete(self):
+        """Delete a Question."""
+        req_data = request.get_json()
+        _id = req_data.get("delete_id")
+        question = Question.get_by_id(_id)
+        if question is None:
+            return {"success": False,
+                    "msg": "Question does not exist"}, 400
+        question.delete()
+        return {"success": True,
+                "msg": "The question was successfully deleted"}, 200
 
 @rest_api.route('/api/questions/getAll')
 class GetAllQuestions(Resource):

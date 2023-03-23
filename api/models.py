@@ -399,6 +399,10 @@ class Question(db.Model):
 
         return question_dict
 
+    @classmethod
+    def get_by_id(cls, id):
+        return cls.query.get_or_404(id)
+
 class UserQuiz(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
