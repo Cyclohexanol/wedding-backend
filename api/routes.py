@@ -14,7 +14,7 @@ from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo, Question, Difficulty
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API", doc=False)
@@ -713,3 +713,106 @@ class CartClear(Resource):
 
         return {"success": True,
                 "msg": "The cart of the group was successfully cleared and its paid variable was changed to false."}, 200
+
+question_edit_model = rest_api.model('QuestionEditModel', {
+    'question_id': fields.Integer(description='Question ID'),
+    'questionText': fields.String(required=False, description='Question text'),
+    'optionA': fields.String(required=False, description='Option A'),
+    'optionB': fields.String(required=False, description='Option B'),
+    'optionC': fields.String(required=False, description='Option C'),
+    'optionD': fields.String(required=False, description='Option D'),
+    'correctOption': fields.String(required=False, description='Correct option'),
+    'difficulty': fields.String(required=False, description='Difficulty level')
+})
+
+question_add_model = rest_api.model('QuestionEditModel', {
+    'correctOption': fields.String(required=False, description='Correct option'),
+    'difficulty': fields.String(required=False, description='Difficulty level')
+})
+
+@rest_api.route('/api/questions')
+class QuestionResource(Resource):
+    @admin_only
+    @rest_api.expect(question_edit_model, validate=True)
+    def post(self):
+        """Create a new question"""
+        req_data = request.json
+        _correct_option = req_data.get("correctOption") if "correctOption" in req_data else None
+        _difficulty = req_data.get("difficulty") if "difficulty" in req_data else None
+        # Create a new question with default values
+        new_question = Question(
+            question_text=f"question-{id}.text",
+            option_a=f"question-{id}.option-a",
+            option_b=f"question-{id}.option-b",
+            option_c=f"question-{id}.option-c",
+            option_d=f"question-{id}.option-d",
+            correct_option=_correct_option,
+            difficulty=_difficulty if _difficulty else Difficulty.EASY
+        )
+
+        # Add the new question to the database
+        db.session.add(new_question)
+        db.session.commit()
+
+        # Update the default values with the newly created question id
+        new_question.question_text = f"question-{new_question.id}.text"
+        new_question.option_a = f"question-{new_question.id}.option-a"
+        new_question.option_b = f"question-{new_question.id}.option-b"
+        new_question.option_c = f"question-{new_question.id}.option-c"
+        new_question.option_d = f"question-{new_question.id}.option-d"
+
+        # Save the updated question to the database
+        db.session.commit()
+        return {'success': True, 'message': 'Question created successfully'}, 200
+
+    @admin_only
+    @rest_api.expect(question_edit_model, validate=True)
+    def put(self):
+        """Update a Question."""
+        req_data = request.get_json()
+        _id = req_data.get("question_id")
+        _question_text = req_data.get("questionText") if "questionText" in req_data else None
+        _option_a = req_data.get("optionA") if "optionA" in req_data else None
+        _option_b = req_data.get("optionB") if "optionB" in req_data else None
+        _option_c = req_data.get("optionC") if "optionC" in req_data else None
+        _option_d = req_data.get("optionD") if "optionD" in req_data else None
+        _correct_option = req_data.get("correctOption") if "correctOption" in req_data else None
+        _difficulty = req_data.get("difficulty") if "difficulty" in req_data else None
+
+        question = Question.query.get(_id)
+        if question is None:
+            return {"success": False, "msg": "Question does not exist"}, 400
+
+        if _question_text:
+            question.question_text = _question_text
+        if _option_a:
+            question.option_a = _option_a
+        if _option_b:
+            question.option_b = _option_b
+        if _option_c:
+            question.option_c = _option_c
+        if _option_d:
+            question.option_d = _option_d
+        if _correct_option:
+            question.correct_option = _correct_option
+        if _difficulty:
+            question.difficulty = Difficulty(_difficulty)
+
+        db.session.commit()
+
+        return {"success": True, "msg": "The question was successfully updated"}, 200
+
+@rest_api.route('/api/questions/getAll')
+class GetAllQuestions(Resource):
+    """
+       Get all questions
+    """
+    @admin_only
+    @token_required
+    def get(current_user, _):
+
+        question = Question.get_all()
+        json_questions = [q.toJSON() for q in question]
+
+        return {"success": True,
+                "questions": json_questions}, 200

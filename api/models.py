@@ -115,6 +115,7 @@ class Users(db.Model):
     song_request = db.Column(db.String(512))
     camping = db.Column(db.Boolean, default=False, nullable=False)
     brunch = db.Column(db.Boolean, default=False, nullable=False)
+    quizzes = db.relationship('UserQuiz', backref='users', lazy=True)
 
     def __repr__(self):
         return f"{self.id=}, {self.first_name}, {self.camping}, {self.brunch}"
@@ -362,4 +363,55 @@ class JWTTokenBlocklist(db.Model):
 
     def save(self):
         db.session.add(self)
+        db.session.commit()
+
+
+class Difficulty(enum.Enum):
+    EASY = "Easy"
+    HARD = "Hard"
+
+class Question(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question_text = db.Column(db.String(512), nullable=False)
+    option_a = db.Column(db.String(256), nullable=False)
+    option_b = db.Column(db.String(256), nullable=False)
+    option_c = db.Column(db.String(256), nullable=False)
+    option_d = db.Column(db.String(256), nullable=False)
+    correct_option = db.Column(db.String(1), default="a")  # Store the correct option as 'a', 'b', 'c', or 'd'
+    difficulty = db.Column(db.Enum(Difficulty), default=Difficulty.EASY)
+
+    def is_correct(self, option):
+        return option.lower() == self.correct_option.lower()
+
+    def to_dict(self, reveal_answer=False):
+        question_dict = {
+            'id': self.id,
+            'question_text': self.question_text,
+            'option_a': self.option_a,
+            'option_b': self.option_b,
+            'option_c': self.option_c,
+            'option_d': self.option_d,
+            'difficulty': self.difficulty
+        }
+
+        if reveal_answer:
+            question_dict['correct_option'] = self.correct_option
+
+        return question_dict
+
+class UserQuiz(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    score = db.Column(db.Integer, nullable=False, default=0)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("Users", backref=db.backref("quizzes", lazy=True))
+    current_question_index = db.Column(db.Integer, nullable=False, default=0)
+
+    def set_current_question_index(self, index):
+        self.current_question_index = index
+        db.session.commit()
+
+    def increment_score(self, points):
+        self.score += points
         db.session.commit()
