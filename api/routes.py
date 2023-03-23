@@ -752,7 +752,7 @@ class QuestionResource(Resource):
             option_b=f"question-{id}.option-b",
             option_c=f"question-{id}.option-c",
             option_d=f"question-{id}.option-d",
-            correct_option=_correct_option.toLower(),
+            correct_option=_correct_option.lower(),
             difficulty=_difficulty if _difficulty else Difficulty.EASY
         )
         if _difficulty:
@@ -808,7 +808,7 @@ class QuestionResource(Resource):
         if _option_d:
             question.option_d = _option_d
         if _correct_option:
-            question.correct_option = _correct_option.toLower()
+            question.correct_option = _correct_option.lower()
         if _difficulty:
             match(_difficulty):
                 case "easy":
