@@ -564,7 +564,8 @@ class Login(Resource):
                     "msg": "Wrong credentials."}, 400
 
         # create access token uwing JWT
-        token = jwt.encode({'name': _name, 'exp': datetime.utcnow() + timedelta(minutes=30)}, BaseConfig.SECRET_KEY, algorithm='HS256')
+        expiration = datetime.utcnow() + timedelta(days=180)
+        token = jwt.encode({'name': _name, 'exp': expiration}, BaseConfig.SECRET_KEY, algorithm='HS256')
 
         group_exists.set_jwt_auth_active(True)
         group_exists.save()
