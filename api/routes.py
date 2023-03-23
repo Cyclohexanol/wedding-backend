@@ -845,8 +845,7 @@ class GetAllQuestions(Resource):
     @token_required
     def get(current_user, _):
 
-        question = Question.get_all()
-        json_questions = [q.toDICT(True) for q in question]
+        questions = Question.get_all()
 
         return {"success": True,
-                "questions": json_questions}, 200
+                "questions": [question.toDICT() for question in questions]}, 200
