@@ -273,7 +273,7 @@ def init_wishes(*args, **kwargs):
             wish = Wishes(
                 title=row[0],
                 description=row[1],
-                picture_url="https://fathers.com.sg/wp-content/uploads/2020/09/star-icon.png",
+                picture_url=row[8],
                 quantity=row[7],
                 price=row[6]
             )
