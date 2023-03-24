@@ -12,6 +12,7 @@ import random
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql.expression import func
 from sqlalchemy import event
 
 db = SQLAlchemy()
@@ -414,17 +415,12 @@ class QuizQuestions(db.Model):
     def get_all(cls):
         return cls.query.all()
 
-    @classmethod
+    @staticmethod
     def random_question(exclude_ids=None):
-        if exclude_ids is None:
-            exclude_ids = []
-
-        available_questions = QuizQuestions.query.filter(QuizQuestions.id.notin_(exclude_ids)).all()
-
-        if not available_questions:
-            return None
-
-        return random.choice(available_questions)
+        if exclude_ids:
+            return QuizQuestions.query.filter(~QuizQuestions.id.in_(exclude_ids)).order_by(func.random()).first()
+        else:
+            return QuizQuestions.query.order_by(func.random()).first()
 
 class UserAnswers(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -936,9 +936,6 @@ class GetCurrentQuestion(Resource):
             db.session.add(user_quiz)
             db.session.commit()
 
-        if user_quiz is None:
-            return {"success": False, "message": "User quiz not found"}, 201
-
         # If the quiz has not started yet
         if user_quiz.current_question_index == 0:
             return {"success": True, "question": {"id": 0}}, 200
