@@ -7,6 +7,8 @@ from datetime import datetime
 
 import csv
 import enum
+import random
+
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -115,7 +117,6 @@ class Users(db.Model):
     song_request = db.Column(db.String(512))
     camping = db.Column(db.Boolean, default=False, nullable=False)
     brunch = db.Column(db.Boolean, default=False, nullable=False)
-    quizzes = db.relationship('UserQuiz', backref='users', lazy=True)
 
     def __repr__(self):
         return f"{self.id=}, {self.first_name}, {self.camping}, {self.brunch}"
@@ -370,7 +371,7 @@ class Difficulty(str, enum.Enum):
     EASY = "Easy"
     HARD = "Hard"
 
-class Question(db.Model):
+class QuizQuestions(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_text = db.Column(db.String(512), nullable=False)
     option_a = db.Column(db.String(256), nullable=False)
@@ -382,6 +383,10 @@ class Question(db.Model):
 
     def is_correct(self, option):
         return option.lower() == self.correct_option.lower()
+
+    @classmethod
+    def count(cls):
+        return cls.query.count()
 
     def toDICT(self, reveal_answer=False):
         question_dict = {
@@ -407,14 +412,44 @@ class Question(db.Model):
     def get_all(cls):
         return cls.query.all()
 
+    @classmethod
+    def random_question(exclude_ids=None):
+        if exclude_ids is None:
+            exclude_ids = []
+
+        available_questions = QuizQuestions.query.filter(QuizQuestions.id.notin_(exclude_ids)).all()
+
+        if not available_questions:
+            return None
+
+        return random.choice(available_questions)
+
+class UserAnswers(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_quiz_id = db.Column(db.Integer, db.ForeignKey('user_quiz.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
+    answer = db.Column(db.String(1))
+
+    user_quiz = db.relationship("UserQuiz", back_populates="user_answers")
+
+    def toDICT(self):
+        ans_dict = {}
+        ans_dict['id'] = self.id
+        ans_dict['user_quiz_id'] = self.user_quiz_id
+        ans_dict['question_id'] = self.question_id
+        ans_dict['answer'] = self.answer
+
+        return ans_dict
+
+
 class UserQuiz(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     score = db.Column(db.Integer, nullable=False, default=0)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-    user = db.relationship("Users", backref=db.backref("user_quizzes", lazy=True))
     current_question_index = db.Column(db.Integer, nullable=False, default=0)
+
+    user_answers = db.relationship("UserAnswers", back_populates="user_quiz")
 
     def set_current_question_index(self, index):
         self.current_question_index = index
@@ -423,3 +458,20 @@ class UserQuiz(db.Model):
     def increment_score(self, points):
         self.score += points
         db.session.commit()
+
+    def toDICT(self):
+        cls_dict = {}
+        cls_dict['id'] = self.id
+        cls_dict['user_id'] = self.user_id
+        cls_dict['score'] = self.score
+        cls_dict['timestamp'] = self.timestamp
+        cls_dict['currentQuestionIndex'] = self.current_question_index
+        cls_dict['userAnswers'] = [answer.toDICT() for answer in self.user_answers]
+
+        completed_questions = len(self.user_answers)
+        total_questions = QuizQuestions.count()
+
+        cls_dict['completedQuestions'] = completed_questions
+        cls_dict['totalQuestions'] = total_questions
+        
+        return cls_dict

@@ -14,7 +14,7 @@ from flask_restx import Api, Resource, fields
 
 import jwt
 
-from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo, Question, Difficulty
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo, QuizQuestions, Difficulty, UserQuiz, UserAnswers
 from .config import BaseConfig
 
 rest_api = Api(version="1.0", title="Saamb API", doc=False)
@@ -747,7 +747,7 @@ class QuestionResource(Resource):
 
 
         # Create a new question with default values
-        new_question = Question(
+        new_question = QuizQuestions(
             question_text=f"question-{id}.text",
             option_a=f"question-{id}.option-a",
             option_b=f"question-{id}.option-b",
@@ -794,7 +794,7 @@ class QuestionResource(Resource):
         _correct_option = req_data.get("correctOption") if "correctOption" in req_data else None
         _difficulty = req_data.get("difficulty") if "difficulty" in req_data else None
 
-        question = Question.query.get(_id)
+        question = QuizQuestions.query.get(_id)
         if question is None:
             return {"success": False, "msg": "Question does not exist"}, 400
 
@@ -829,7 +829,7 @@ class QuestionResource(Resource):
         """Delete a Question."""
         req_data = request.get_json()
         _id = req_data.get("delete_id")
-        question = Question.get_by_id(_id)
+        question = QuizQuestions.get_by_id(_id)
         if question is None:
             return {"success": False,
                     "msg": "Question does not exist"}, 400
@@ -846,7 +846,90 @@ class GetAllQuestions(Resource):
     @token_required
     def get(current_user, _):
 
-        questions = Question.get_all()
+        questions = QuizQuestions.get_all()
 
         return {"success": True,
                 "questions": [question.toDICT(True) for question in questions]}, 200
+
+@rest_api.route('/api/questions/next')
+class GetNextQuestion(Resource):
+    """
+       Get the next question.
+       If current question in UserQuiz is -1, this means the Quiz is completed
+       If current question is 0, this means the Quiz has not started yet
+       If current question is greater than 0, this means the Quiz is in progress 
+        and if the current question dows not have an answer, it will be returned,
+        else, randomize a new question from the Questions model, set it as the current question and return it
+        if all question have been answered retrun id -1.
+    """
+    @token_required
+    def get(current_user):
+        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
+
+        # If the quiz is completed
+        if user_quiz.current_question_index == -1:
+            return {"success": True, "question": {"id": -1}}, 200
+
+        # If the quiz has not started yet
+        if user_quiz.current_question_index == 0:
+            question = QuizQuestions.random_question()
+            user_quiz.set_current_question_index(question.id)
+            return {"success": True, "question": question.toDICT()}, 200
+
+        # If the quiz is in progress
+        current_question = QuizQuestions.query.get(user_quiz.current_question_index)
+        user_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=current_question.id).first()
+
+        # If the current question does not have an answer
+        if user_answer is None:
+            return {"success": True, "question": current_question.toDICT()}, 200
+        else:
+            # Find a new question that has not been answered yet
+            answered_question_ids = [answer.question_id for answer in UserAnswers.query.filter_by(user_quiz_id=user_quiz.id).all()]
+            new_question = QuizQuestions.random_question(exclude_ids=answered_question_ids)
+
+            # If all questions have been answered
+            if new_question is None:
+                user_quiz.set_current_question_index(-1)
+                return {"success": True, "question": {"id": -1}}, 200
+
+            user_quiz.set_current_question_index(new_question.id)
+            return {"success": True, "question": new_question.toDICT()}, 200
+
+
+answer_model = rest_api.model('Answer', {
+    'question_id': fields.Integer(required=True),
+    'answer': fields.String(required=True)
+})
+
+@rest_api.route('/api/answer')
+class AnswerQuestion(Resource):
+
+    @rest_api.expect(answer_model)
+    @token_required
+    def post(current_user):
+        data = request.get_json()
+
+        question_id = data.get('question_id')
+        user_answer = data.get('answer')
+
+        # Get the question and check if the answer is correct
+        question = QuizQuestions.get_by_id(question_id)
+        is_correct = question.is_correct(user_answer)
+
+        # Update the user's score if the answer is correct
+        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
+        if is_correct:
+            user_quiz.increment_score(1)  # Increment the score by 1 point
+
+        # Save the user's answer to the UserAnswers model
+        answer = UserAnswers(user_quiz_id=user_quiz.id, question_id=question_id, answer=user_answer)
+        db.session.add(answer)
+        db.session.commit()
+
+        # Return the correct answer and success message
+        return {
+            "success": True,
+            "is_correct": is_correct,
+            "correct_answer": question.correct_option
+        }, 200
