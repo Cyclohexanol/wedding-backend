@@ -949,13 +949,11 @@ class GetCurrentQuestion(Resource):
 
         user_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=current_question.id).first()
 
-        print (user_answer)
-
         # If the current question does not have an answer
         if user_answer is None:
-            return {"success": True, "question": current_question.toDICT(True)}, 200
+            return {"success": True, "question": current_question.toDICT()}, 200
 
-        return {"success": True, "question": current_question.toDICT()}, 200
+        return {"success": True, "question": current_question.toDICT(True)}, 200
 
 
 answer_model = rest_api.model('Answer', {
