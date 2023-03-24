@@ -845,12 +845,16 @@ class GetAllQuestions(Resource):
     """
     @admin_only
     @token_required
-    def get(current_user, _):
+    def get(current_group, _):
 
         questions = QuizQuestions.get_all()
 
         return {"success": True,
                 "questions": [question.toDICT(True) for question in questions]}, 200
+
+self_user_model = rest_api.model('SelfUser', {
+    'user_id': fields.Integer(required=True)
+})
 
 @rest_api.route('/api/questions/next')
 class GetNextQuestion(Resource):
@@ -864,11 +868,13 @@ class GetNextQuestion(Resource):
         if all question have been answered retrun id -1.
     """
     @token_required
-    def get(current_user):
-        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
+    def get(current_group, _):
+        data = request.get_json()
+        user_id = data.get("user_id")
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
 
         if user_quiz is None:
-            user_quiz = UserQuiz(user_id=current_user.id)
+            user_quiz = UserQuiz(user_id=user_id)
             db.session.add(user_quiz)
             db.session.commit()
 
@@ -908,9 +914,12 @@ class GetCurrentQuestion(Resource):
     """
         Return the current question or if the index is 0, just the id: 0
     """
+    @rest_api.expect(self_user_model)
     @token_required
-    def get(current_user):
-        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
+    def get(current_group, _):
+        data = request.get_json()
+        user_id = data.get("user_id")
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
 
         if user_quiz is None:
             return {"success": False, "message": "User quiz not found"}, 404
@@ -938,7 +947,7 @@ class AnswerQuestion(Resource):
 
     @rest_api.expect(answer_model)
     @token_required
-    def post(current_user):
+    def post(current_group, _):
         data = request.get_json()
 
         question_id = data.get('question_id')
@@ -987,7 +996,7 @@ class Leaderboard(Resource):
     """
 
     @token_required
-    def get(current_user):
+    def get(current_group, _):
         # Query UserQuiz instances with completed quizzes and order by score
         completed_quizzes = UserQuiz.query.filter_by(current_question_index=-1).order_by(desc(UserQuiz.score)).all()
 
