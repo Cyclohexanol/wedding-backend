@@ -903,6 +903,31 @@ class GetNextQuestion(Resource):
             return {"success": True, "question": new_question.toDICT()}, 200
 
 
+@rest_api.route('/api/questions/current')
+class GetCurrentQuestion(Resource):
+    """
+        Return the current question or if the index is 0, just the id: 0
+    """
+    @token_required
+    def get(current_user):
+        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
+
+        if user_quiz is None:
+            return {"success": False, "message": "User quiz not found"}, 404
+
+        # If the quiz has not started yet
+        if user_quiz.current_question_index == 0:
+            return {"success": True, "question": {"id": 0}}, 200
+
+        # If the quiz is completed
+        if user_quiz.current_question_index == -1:
+            return {"success": True, "question": {"id": -1}}, 200
+
+        # If the quiz is in progress, return the current question
+        current_question = QuizQuestions.query.get(user_quiz.current_question_index)
+        return {"success": True, "question": current_question.toDICT()}, 200
+
+
 answer_model = rest_api.model('Answer', {
     'question_id': fields.Integer(required=True),
     'answer': fields.String(required=True)
@@ -917,7 +942,7 @@ class AnswerQuestion(Resource):
         data = request.get_json()
 
         question_id = data.get('question_id')
-        user_answer = data.get('answer')
+        user_answer = data.get('answer').lower()
 
         # Get the user's quiz
         user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
