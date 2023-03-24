@@ -1025,7 +1025,7 @@ class Leaderboard(Resource):
 
         return {"success": True, "players": players}, 200
 
-    @rest_api.route('/api/userquiz')
+@rest_api.route('/api/userquiz')
 class GetUserQuiz(Resource):
     """
         Get the user's quiz.
