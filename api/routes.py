@@ -866,6 +866,11 @@ class GetNextQuestion(Resource):
     def get(current_user):
         user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
 
+        if user_quiz is None:
+            user_quiz = UserQuiz(user_id=current_user.id)
+            db.session.add(user_quiz)
+            db.session.commit()
+
         # If the quiz is completed
         if user_quiz.current_question_index == -1:
             return {"success": True, "question": {"id": -1}}, 200
@@ -933,6 +938,8 @@ class AnswerQuestion(Resource):
         # Return the correct answer and success message
         return {
             "success": True,
-            "is_correct": is_correct,
-            "correct_answer": question.correct_option
+            "answer": {
+                "is_correct": is_correct,
+                "correct_answer": question.correct_option
+            }
         }, 200
