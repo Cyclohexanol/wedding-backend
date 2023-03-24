@@ -462,7 +462,6 @@ class UserQuiz(db.Model):
         cls_dict['id'] = self.id
         cls_dict['user_id'] = self.user_id
         cls_dict['score'] = self.score
-        cls_dict['timestamp'] = self.timestamp
         cls_dict['currentQuestionIndex'] = self.current_question_index
         cls_dict['userAnswers'] = [answer.toDICT() for answer in self.user_answers]
 
