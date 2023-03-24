@@ -11,6 +11,7 @@ import json
 
 from flask import request
 from flask_restx import Api, Resource, fields
+from sqlalchemy import desc
 
 import jwt
 
@@ -918,12 +919,22 @@ class AnswerQuestion(Resource):
         question_id = data.get('question_id')
         user_answer = data.get('answer')
 
+        # Get the user's quiz
+        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
+
+        # Check if the user has already answered the question
+        existing_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=question_id).first()
+        if existing_answer:
+            return {
+                "success": False,
+                "message": "You have already answered this question."
+            }, 400
+
         # Get the question and check if the answer is correct
         question = QuizQuestions.get_by_id(question_id)
         is_correct = question.is_correct(user_answer)
 
         # Update the user's score if the answer is correct
-        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
         if is_correct:
             if question.difficulty == Difficulty.EASY:
                 user_quiz.increment_score(3)
@@ -943,3 +954,25 @@ class AnswerQuestion(Resource):
                 "correct_answer": question.correct_option
             }
         }, 200
+
+@rest_api.route('/api/leaderboard')
+class Leaderboard(Resource):
+    """
+    Get leaderboard data with players who have completed the quiz, ordered by score.
+    """
+
+    @token_required
+    def get(current_user):
+        # Query UserQuiz instances with completed quizzes and order by score
+        completed_quizzes = UserQuiz.query.filter_by(current_question_index=-1).order_by(desc(UserQuiz.score)).all()
+
+        players = []
+        for quiz in completed_quizzes:
+            user = Users.query.get(quiz.user_id)
+            players.append({
+                "firstName": user.first_name,
+                "lastName": user.last_name,
+                "score": quiz.score
+            })
+
+        return {"success": True, "players": players}, 200
