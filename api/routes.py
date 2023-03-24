@@ -946,6 +946,13 @@ class GetCurrentQuestion(Resource):
 
         # If the quiz is in progress, return the current question
         current_question = QuizQuestions.query.get(user_quiz.current_question_index)
+
+        user_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=current_question.id).first()
+
+        # If the current question does not have an answer
+        if user_answer is None:
+            return {"success": True, "question": current_question.toDICT(True)}, 200
+
         return {"success": True, "question": current_question.toDICT()}, 200
 
 
