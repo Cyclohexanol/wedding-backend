@@ -867,6 +867,7 @@ class GetNextQuestion(Resource):
         else, randomize a new question from the Questions model, set it as the current question and return it
         if all question have been answered retrun id -1.
     """
+    @rest_api.expect(self_user_model)
     @token_required
     def get(current_group, _):
         data = request.get_json()
