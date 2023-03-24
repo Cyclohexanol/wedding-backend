@@ -852,9 +852,6 @@ class GetAllQuestions(Resource):
         return {"success": True,
                 "questions": [question.toDICT(True) for question in questions]}, 200
 
-self_user_model = rest_api.model('SelfUser', {
-    'user_id': fields.Integer(required=True)
-})
 
 @rest_api.route('/api/questions/next')
 class GetNextQuestion(Resource):
@@ -867,11 +864,17 @@ class GetNextQuestion(Resource):
         else, randomize a new question from the Questions model, set it as the current question and return it
         if all question have been answered retrun id -1.
     """
-    @rest_api.expect(self_user_model)
     @token_required
     def get(current_group, _):
-        data = request.get_json()
-        user_id = data.get("user_id")
+        user_id = request.args.get("user_id")
+        if user_id is None:
+            return {"success": False, "message": "Missing user_id query parameter"}, 400
+
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return {"success": False, "message": "Invalid user_id format"}, 400
+
         user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
 
         if user_quiz is None:
@@ -915,15 +918,21 @@ class GetCurrentQuestion(Resource):
     """
         Return the current question or if the index is 0, just the id: 0
     """
-    @rest_api.expect(self_user_model)
     @token_required
     def get(current_group, _):
-        data = request.get_json()
-        user_id = data.get("user_id")
+        user_id = request.args.get("user_id")
+        if user_id is None:
+            return {"success": False, "message": "Missing user_id query parameter"}, 400
+
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return {"success": False, "message": "Invalid user_id format"}, 400
+
         user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
 
         if user_quiz is None:
-            return {"success": False, "message": "User quiz not found"}, 404
+            return {"success": False, "message": "User quiz not found"}, 201
 
         # If the quiz has not started yet
         if user_quiz.current_question_index == 0:
