@@ -1024,3 +1024,29 @@ class Leaderboard(Resource):
             })
 
         return {"success": True, "players": players}, 200
+
+    @rest_api.route('/api/userquiz')
+class GetUserQuiz(Resource):
+    """
+        Get the user's quiz.
+        If the user's quiz exists, return it.
+        If not, return a message indicating the quiz was not found.
+    """
+    @token_required
+    def get(current_group, _):
+        user_id = request.args.get("user_id")
+        if user_id is None:
+            return {"success": False, "message": "Missing user_id query parameter"}, 400
+
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return {"success": False, "message": "Invalid user_id format"}, 400
+
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
+
+        if user_quiz is None:
+            return {"success": False, "message": "Quiz not found for the given user_id"}, 404
+
+        return {"success": True, "user_quiz": user_quiz.toDICT()}, 200
+
