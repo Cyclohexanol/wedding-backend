@@ -372,6 +372,8 @@ class Difficulty(str, enum.Enum):
     HARD = "Hard"
 
 class QuizQuestions(db.Model):
+    __tablename__ = 'question'
+
     id = db.Column(db.Integer, primary_key=True)
     question_text = db.Column(db.String(512), nullable=False)
     option_a = db.Column(db.String(256), nullable=False)
