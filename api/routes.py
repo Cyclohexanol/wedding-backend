@@ -938,6 +938,7 @@ class GetCurrentQuestion(Resource):
 
 
 answer_model = rest_api.model('Answer', {
+    'user_id': fields.Integer(required=True),
     'question_id': fields.Integer(required=True),
     'answer': fields.String(required=True)
 })
@@ -950,11 +951,12 @@ class AnswerQuestion(Resource):
     def post(current_group, _):
         data = request.get_json()
 
+        user_id = data.get('user_id')
         question_id = data.get('question_id')
         user_answer = data.get('answer').lower()
 
         # Get the user's quiz
-        user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
 
         # Check if the user has already answered the question
         existing_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=question_id).first()
