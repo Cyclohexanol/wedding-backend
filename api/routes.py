@@ -920,7 +920,10 @@ class AnswerQuestion(Resource):
         # Update the user's score if the answer is correct
         user_quiz = UserQuiz.query.filter_by(user_id=current_user.id).first()
         if is_correct:
-            user_quiz.increment_score(1)  # Increment the score by 1 point
+            if question.difficulty == Difficulty.EASY:
+                user_quiz.increment_score(3)
+            else:
+                user_quiz.increment_score(5)
 
         # Save the user's answer to the UserAnswers model
         answer = UserAnswers(user_quiz_id=user_quiz.id, question_id=question_id, answer=user_answer)
