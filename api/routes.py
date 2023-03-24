@@ -932,6 +932,11 @@ class GetCurrentQuestion(Resource):
         user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
 
         if user_quiz is None:
+            user_quiz = UserQuiz(user_id=user_id)
+            db.session.add(user_quiz)
+            db.session.commit()
+
+        if user_quiz is None:
             return {"success": False, "message": "User quiz not found"}, 201
 
         # If the quiz has not started yet
