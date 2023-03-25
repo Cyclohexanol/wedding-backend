@@ -422,6 +422,7 @@ class QuizQuestions(db.Model):
         else:
             return QuizQuestions.query.order_by(func.random()).first()
 
+
 class UserAnswers(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_quiz_id = db.Column(db.Integer, db.ForeignKey('user_quiz.id'), nullable=False)
