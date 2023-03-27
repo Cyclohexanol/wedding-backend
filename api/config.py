@@ -9,3 +9,4 @@ class BaseConfig():
     SECRET_KEY = "saamblove-2023"
     JWT_SECRET_KEY = "saamblove-2023"
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8500)
+    PRODUCTION=True if os.getenv("BRANCH") == "main" else False
