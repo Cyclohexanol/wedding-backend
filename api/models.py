@@ -7,9 +7,12 @@ from datetime import datetime
 
 import csv
 import enum
+import random
+
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql.expression import func
 from sqlalchemy import event
 
 db = SQLAlchemy()
@@ -196,6 +199,15 @@ class Wishes(db.Model):
                 quantityTmp -= rel.quantity
         return quantityTmp if quantityTmp > 0 else 0 # TODO check for concurrent access
 
+    def get_quantity_available(self):
+        quantityTmp = self.quantity
+        wish_group = wishes_groups.query.filter_by(wish_id=self.id).all()
+        if len(wish_group) > 0:
+            for rel in wish_group:
+                quantityTmp -= rel.quantity
+        return quantityTmp if quantityTmp > 0 else 0 # TODO check for concurrent access
+
+
     def delete(self):
         db.session.delete(self)
         db.session.commit()
@@ -211,6 +223,8 @@ class Wishes(db.Model):
         cls_dict['description'] = self.description
         cls_dict['pictureUrl'] = self.picture_url
         cls_dict['quantity'] = self.get_quantity_left()
+        cls_dict['totalQuantity'] = self.quantity
+        cls_dict['available'] = self.get_quantity_available()
         cls_dict['price'] = self.price
         # cls_dict['groups'] = [group.toDICT() for group in self.groups] TODO no need for now, taking from group -> cart
 
@@ -261,7 +275,7 @@ def init_wishes(*args, **kwargs):
             wish = Wishes(
                 title=row[0],
                 description=row[1],
-                picture_url="https://fathers.com.sg/wp-content/uploads/2020/09/star-icon.png",
+                picture_url=row[8],
                 quantity=row[7],
                 price=row[6]
             )
@@ -352,3 +366,110 @@ class JWTTokenBlocklist(db.Model):
     def save(self):
         db.session.add(self)
         db.session.commit()
+
+
+class Difficulty(str, enum.Enum):
+    EASY = "Easy"
+    HARD = "Hard"
+
+class QuizQuestions(db.Model):
+    __tablename__ = 'question'
+
+    id = db.Column(db.Integer, primary_key=True)
+    question_text = db.Column(db.String(512), nullable=False)
+    option_a = db.Column(db.String(256), nullable=False)
+    option_b = db.Column(db.String(256), nullable=False)
+    option_c = db.Column(db.String(256), nullable=False)
+    option_d = db.Column(db.String(256), nullable=False)
+    correct_option = db.Column(db.String(1), default="a")  # Store the correct option as 'a', 'b', 'c', or 'd'
+    difficulty = db.Column(db.Enum(Difficulty), default=Difficulty.EASY)
+
+    def is_correct(self, option):
+        return option.lower() == self.correct_option.lower()
+
+    @classmethod
+    def count(cls):
+        return cls.query.count()
+
+    def toDICT(self, reveal_answer=False):
+        question_dict = {
+            'id': self.id,
+            'questionText': self.question_text,
+            'optionA': self.option_a,
+            'optionB': self.option_b,
+            'optionC': self.option_c,
+            'optionD': self.option_d,
+            'difficulty': self.difficulty
+        }
+
+        if reveal_answer:
+            question_dict['correctOption'] = self.correct_option
+
+        return question_dict
+
+    @classmethod
+    def get_by_id(cls, id):
+        return cls.query.get_or_404(id)
+
+    @classmethod
+    def get_all(cls):
+        return cls.query.all()
+
+    @staticmethod
+    def random_question(exclude_ids=None):
+        if exclude_ids:
+            return QuizQuestions.query.filter(~QuizQuestions.id.in_(exclude_ids)).order_by(func.random()).first()
+        else:
+            return QuizQuestions.query.order_by(func.random()).first()
+
+
+class UserAnswers(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_quiz_id = db.Column(db.Integer, db.ForeignKey('user_quiz.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
+    answer = db.Column(db.String(1))
+
+    user_quiz = db.relationship("UserQuiz", back_populates="user_answers")
+
+    def toDICT(self):
+        ans_dict = {}
+        ans_dict['id'] = self.id
+        ans_dict['user_quiz_id'] = self.user_quiz_id
+        ans_dict['question_id'] = self.question_id
+        ans_dict['answer'] = self.answer
+
+        return ans_dict
+
+
+class UserQuiz(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    score = db.Column(db.Integer, nullable=False, default=0)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    current_question_index = db.Column(db.Integer, nullable=False, default=0)
+
+    user_answers = db.relationship("UserAnswers", back_populates="user_quiz")
+
+    def set_current_question_index(self, index):
+        self.current_question_index = index
+        db.session.commit()
+
+    def increment_score(self, points):
+        self.score += points
+        db.session.commit()
+
+    def toDICT(self):
+        cls_dict = {}
+        cls_dict['id'] = self.id
+        cls_dict['user_id'] = self.user_id
+        cls_dict['score'] = self.score
+        cls_dict['currentQuestionIndex'] = self.current_question_index
+        cls_dict['userAnswers'] = [answer.toDICT() for answer in self.user_answers]
+
+        completed_questions = len(self.user_answers)
+        total_questions = QuizQuestions.count()
+
+        cls_dict['completedQuestions'] = completed_questions
+        cls_dict['totalQuestions'] = total_questions
+        
+        return cls_dict

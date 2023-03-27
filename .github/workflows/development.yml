@@ -62,6 +62,12 @@ jobs:
           port: 22
           passphrase: ""
           script: |
-            docker stop $(docker ps -a -q)
+            CONTAINER_NAME="wedding-backend-dev"
+            CONTAINER_ID=$(docker ps -aq --filter "name=$CONTAINER_NAME")
+            docker rmi $(docker images -q)
+            if [ ! -z "$CONTAINER_ID" ]; then
+              docker stop $CONTAINER_ID
+              docker rm $CONTAINER_ID
+            fi
             docker pull ghcr.io/cyclohexanol/wedding-backend:develop
-            docker run -dit -p 5000:5005 -v /root/data:/data ghcr.io/cyclohexanol/wedding-backend:develop
+            docker run -dit -p 6000:5005 -v /root/data-dev:/data -v /root/db-dev:/app/db --env BRANCH="develop" --name $CONTAINER_NAME ghcr.io/cyclohexanol/wedding-backend:develop

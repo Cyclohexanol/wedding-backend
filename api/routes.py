@@ -11,13 +11,14 @@ import json
 
 from flask import request
 from flask_restx import Api, Resource, fields
+from sqlalchemy import desc
 
 import jwt
 
-from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo
+from .models import AttendanceStatus, DietaryRestrictions, RegistrationStatus, db, Users, Groups, Wishes, JWTTokenBlocklist, wishes_groups, PaymentInfo, QuizQuestions, Difficulty, UserQuiz, UserAnswers
 from .config import BaseConfig
 
-rest_api = Api(version="1.0", title="Saamb API")
+rest_api = Api(version="1.0", title="Saamb API", doc=False)
 
 
 """
@@ -177,8 +178,8 @@ class GroupsEP(Resource):
 
         _name = req_data.get("name").lower()
         _password = req_data.get("password")
-        if "super_group" in req_data:
-            _super_group = req_data.get("super_group")
+        if "superGroup" in req_data:
+            _super_group = req_data.get("superGroup")
         else:
             _super_group = False
         if "members_ids" in req_data:
@@ -564,7 +565,8 @@ class Login(Resource):
                     "msg": "Wrong credentials."}, 400
 
         # create access token uwing JWT
-        token = jwt.encode({'name': _name, 'exp': datetime.utcnow() + timedelta(minutes=30)}, BaseConfig.SECRET_KEY, algorithm='HS256')
+        expiration = datetime.utcnow() + timedelta(days=180)
+        token = jwt.encode({'name': _name, 'exp': expiration}, BaseConfig.SECRET_KEY, algorithm='HS256')
 
         group_exists.set_jwt_auth_active(True)
         group_exists.save()
@@ -687,3 +689,371 @@ class GetAllUsers(Resource):
 
         return {"success": True,
                 "users": json_users}, 200
+
+cart_clear_model = rest_api.model('CartClearModel', {
+    "group_id": fields.Integer(required=True)
+})
+
+@rest_api.route('/api/groups/cartClear')
+class CartClear(Resource):
+    @token_required
+    @rest_api.expect(cart_clear_model, validate=True)
+    def delete(current_group, self):
+        """Clear the cart of a group and change its paid variable to false."""
+        req_data = request.get_json()
+        _group_id = req_data.get("group_id")
+        group = Groups.get_by_id(_group_id)
+        if group is None:
+            return {"success": False,
+                    "msg": "Group not found."}, 404
+
+        for wish in group.wishes:
+            wishes_group = wishes_groups.get_by_ids(wish.id, group.id)
+            db.session.delete(wishes_group)
+        group.paid = False
+        db.session.commit()
+
+        return {"success": True,
+                "msg": "The cart of the group was successfully cleared and its paid variable was changed to false."}, 200
+
+question_edit_model = rest_api.model('QuestionEditModel', {
+    'question_id': fields.Integer(description='Question ID'),
+    'questionText': fields.String(required=False, description='Question text'),
+    'optionA': fields.String(required=False, description='Option A'),
+    'optionB': fields.String(required=False, description='Option B'),
+    'optionC': fields.String(required=False, description='Option C'),
+    'optionD': fields.String(required=False, description='Option D'),
+    'correctOption': fields.String(required=False, description='Correct option'),
+    'difficulty': fields.String(required=False, description='Difficulty level')
+})
+
+question_add_model = rest_api.model('QuestionAddModel', {
+    'correctOption': fields.String(required=False, description='Correct option'),
+    'difficulty': fields.String(required=False, description='Difficulty level')
+})
+
+delete_question_model = rest_api.model('QuestionDeleteModel', {
+    'question_id': fields.Integer(description='Question ID')
+})
+
+@rest_api.route('/api/questions')
+class QuestionResource(Resource):
+    @admin_only
+    @rest_api.expect(question_edit_model, validate=True)
+    def post(self):
+        """Create a new question"""
+        req_data = request.json
+        _correct_option = req_data.get("correctOption") if "correctOption" in req_data else None
+        _difficulty = req_data.get("difficulty") if "difficulty" in req_data else None
+
+
+        # Create a new question with default values
+        new_question = QuizQuestions(
+            question_text=f"question-{id}.text",
+            option_a=f"question-{id}.option-a",
+            option_b=f"question-{id}.option-b",
+            option_c=f"question-{id}.option-c",
+            option_d=f"question-{id}.option-d",
+            correct_option=_correct_option.lower(),
+            difficulty=_difficulty if _difficulty else Difficulty.EASY
+        )
+        if _difficulty:
+            match(_difficulty):
+                case "easy":
+                    new_question.difficulty = Difficulty.EASY
+                case "hard":
+                    new_question.difficulty = Difficulty.HARD
+                case _:
+                    new_question.difficulty = Difficulty.EASY
+
+        # Add the new question to the database
+        db.session.add(new_question)
+        db.session.commit()
+
+        # Update the default values with the newly created question id
+        new_question.question_text = f"question-{new_question.id}.text"
+        new_question.option_a = f"question-{new_question.id}.option-a"
+        new_question.option_b = f"question-{new_question.id}.option-b"
+        new_question.option_c = f"question-{new_question.id}.option-c"
+        new_question.option_d = f"question-{new_question.id}.option-d"
+
+        # Save the updated question to the database
+        db.session.commit()
+        return {'success': True, 'message': 'Question created successfully'}, 200
+
+    @admin_only
+    @rest_api.expect(question_edit_model, validate=True)
+    def put(self):
+        """Update a Question."""
+        req_data = request.get_json()
+        _id = req_data.get("question_id")
+        _question_text = req_data.get("questionText") if "questionText" in req_data else None
+        _option_a = req_data.get("optionA") if "optionA" in req_data else None
+        _option_b = req_data.get("optionB") if "optionB" in req_data else None
+        _option_c = req_data.get("optionC") if "optionC" in req_data else None
+        _option_d = req_data.get("optionD") if "optionD" in req_data else None
+        _correct_option = req_data.get("correctOption") if "correctOption" in req_data else None
+        _difficulty = req_data.get("difficulty") if "difficulty" in req_data else None
+
+        question = QuizQuestions.query.get(_id)
+        if question is None:
+            return {"success": False, "msg": "Question does not exist"}, 400
+
+        if _question_text:
+            question.question_text = _question_text
+        if _option_a:
+            question.option_a = _option_a
+        if _option_b:
+            question.option_b = _option_b
+        if _option_c:
+            question.option_c = _option_c
+        if _option_d:
+            question.option_d = _option_d
+        if _correct_option:
+            question.correct_option = _correct_option.lower()
+        if _difficulty:
+            match(_difficulty):
+                case "easy":
+                    question.difficulty = Difficulty.EASY
+                case "hard":
+                    question.difficulty = Difficulty.HARD
+                case _:
+                    question.difficulty = Difficulty.EASY
+
+        db.session.commit()
+
+        return {"success": True, "msg": "The question was successfully updated"}, 200
+
+    @admin_only
+    @rest_api.expect(delete_question_model, validate=True)
+    def delete(self):
+        """Delete a Question."""
+        req_data = request.get_json()
+        _id = req_data.get("delete_id")
+        question = QuizQuestions.get_by_id(_id)
+        if question is None:
+            return {"success": False,
+                    "msg": "Question does not exist"}, 400
+        question.delete()
+        return {"success": True,
+                "msg": "The question was successfully deleted"}, 200
+
+@rest_api.route('/api/questions/getAll')
+class GetAllQuestions(Resource):
+    """
+       Get all questions
+    """
+    @admin_only
+    @token_required
+    def get(current_group, _):
+
+        questions = QuizQuestions.get_all()
+
+        return {"success": True,
+                "questions": [question.toDICT(True) for question in questions]}, 200
+
+
+@rest_api.route('/api/questions/next')
+class GetNextQuestion(Resource):
+    """
+       Get the next question.
+       If current question in UserQuiz is -1, this means the Quiz is completed
+       If current question is 0, this means the Quiz has not started yet
+       If current question is greater than 0, this means the Quiz is in progress 
+        and if the current question dows not have an answer, it will be returned,
+        else, randomize a new question from the Questions model, set it as the current question and return it
+        if all question have been answered retrun id -1.
+    """
+    @token_required
+    def get(current_group, _):
+        user_id = request.args.get("user_id")
+        if user_id is None:
+            return {"success": False, "message": "Missing user_id query parameter"}, 400
+
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return {"success": False, "message": "Invalid user_id format"}, 400
+
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
+
+        if user_quiz is None:
+            user_quiz = UserQuiz(user_id=user_id)
+            db.session.add(user_quiz)
+            db.session.commit()
+
+        # If the quiz is completed
+        if user_quiz.current_question_index == -1:
+            return {"success": True, "question": {"id": -1}}, 200
+
+        # If the quiz has not started yet
+        if user_quiz.current_question_index == 0:
+            question = QuizQuestions.random_question()
+            user_quiz.set_current_question_index(question.id)
+            return {"success": True, "question": question.toDICT()}, 200
+
+        # If the quiz is in progress
+        current_question = QuizQuestions.query.get(user_quiz.current_question_index)
+        user_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=current_question.id).first()
+
+        # If the current question does not have an answer
+        if user_answer is None:
+            return {"success": True, "question": current_question.toDICT()}, 200
+        else:
+            # Find a new question that has not been answered yet
+            answered_question_ids = [answer.question_id for answer in UserAnswers.query.filter_by(user_quiz_id=user_quiz.id).all()]
+            new_question = QuizQuestions.random_question(exclude_ids=answered_question_ids)
+
+            # If all questions have been answered
+            if new_question is None:
+                user_quiz.set_current_question_index(-1)
+                return {"success": True, "question": {"id": -1}}, 200
+
+            user_quiz.set_current_question_index(new_question.id)
+            return {"success": True, "question": new_question.toDICT()}, 200
+
+
+@rest_api.route('/api/questions/current')
+class GetCurrentQuestion(Resource):
+    """
+        Return the current question or if the index is 0, just the id: 0
+    """
+    @token_required
+    def get(current_group, _):
+        user_id = request.args.get("user_id")
+        if user_id is None:
+            return {"success": False, "message": "Missing user_id query parameter"}, 400
+
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return {"success": False, "message": "Invalid user_id format"}, 400
+
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
+
+        if user_quiz is None:
+            user_quiz = UserQuiz(user_id=user_id)
+            db.session.add(user_quiz)
+            db.session.commit()
+
+        # If the quiz has not started yet
+        if user_quiz.current_question_index == 0:
+            return {"success": True, "question": {"id": 0}}, 200
+
+        # If the quiz is completed
+        if user_quiz.current_question_index == -1:
+            return {"success": True, "question": {"id": -1}}, 200
+
+        # If the quiz is in progress, return the current question
+        current_question = QuizQuestions.query.get(user_quiz.current_question_index)
+
+        user_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=current_question.id).first()
+
+        # If the current question does not have an answer
+        if user_answer is None:
+            return {"success": True, "question": current_question.toDICT()}, 200
+
+        return {"success": True, "question": current_question.toDICT(True)}, 200
+
+
+answer_model = rest_api.model('Answer', {
+    'user_id': fields.Integer(required=True),
+    'question_id': fields.Integer(required=True),
+    'answer': fields.String(required=True)
+})
+
+@rest_api.route('/api/answer')
+class AnswerQuestion(Resource):
+
+    @rest_api.expect(answer_model)
+    @token_required
+    def post(current_group, _):
+        data = request.get_json()
+
+        user_id = data.get('user_id')
+        question_id = data.get('question_id')
+        user_answer = data.get('answer').lower()
+
+        # Get the user's quiz
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
+
+        # Check if the user has already answered the question
+        existing_answer = UserAnswers.query.filter_by(user_quiz_id=user_quiz.id, question_id=question_id).first()
+        if existing_answer:
+            return {
+                "success": False,
+                "message": "You have already answered this question."
+            }, 400
+
+        # Get the question and check if the answer is correct
+        question = QuizQuestions.get_by_id(question_id)
+        is_correct = question.is_correct(user_answer)
+
+        # Update the user's score if the answer is correct
+        if is_correct:
+            if question.difficulty == Difficulty.EASY:
+                user_quiz.increment_score(3)
+            else:
+                user_quiz.increment_score(5)
+
+        # Save the user's answer to the UserAnswers model
+        answer = UserAnswers(user_quiz_id=user_quiz.id, question_id=question_id, answer=user_answer)
+        db.session.add(answer)
+        db.session.commit()
+
+        # Return the correct answer and success message
+        return {
+            "success": True,
+            "answer": {
+                "is_correct": is_correct,
+                "correct_answer": question.correct_option
+            }
+        }, 200
+
+@rest_api.route('/api/leaderboard')
+class Leaderboard(Resource):
+    """
+    Get leaderboard data with players who have completed the quiz, ordered by score.
+    """
+
+    @token_required
+    def get(current_group, _):
+        # Query UserQuiz instances with completed quizzes and order by score
+        completed_quizzes = UserQuiz.query.filter_by(current_question_index=-1).order_by(desc(UserQuiz.score)).all()
+
+        players = []
+        for quiz in completed_quizzes:
+            user = Users.query.get(quiz.user_id)
+            players.append({
+                "firstName": user.first_name,
+                "lastName": user.last_name,
+                "score": quiz.score
+            })
+
+        return {"success": True, "players": players}, 200
+
+@rest_api.route('/api/userquiz')
+class GetUserQuiz(Resource):
+    """
+        Get the user's quiz.
+        If the user's quiz exists, return it.
+        If not, return a message indicating the quiz was not found.
+    """
+    @token_required
+    def get(current_group, _):
+        user_id = request.args.get("user_id")
+        if user_id is None:
+            return {"success": False, "message": "Missing user_id query parameter"}, 400
+
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return {"success": False, "message": "Invalid user_id format"}, 400
+
+        user_quiz = UserQuiz.query.filter_by(user_id=user_id).first()
+
+        if user_quiz is None:
+            return {"success": False, "message": "Quiz not found for the given user_id"}, 404
+
+        return {"success": True, "user_quiz": user_quiz.toDICT()}, 200
+
