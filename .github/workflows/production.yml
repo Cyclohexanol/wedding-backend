@@ -1,4 +1,4 @@
-name: Build and Deploy the API
+name: Build and Deploy the Prod API
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: "ghcr.io/cyclohexanol/wedding-backend:main" #${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   deploy:
