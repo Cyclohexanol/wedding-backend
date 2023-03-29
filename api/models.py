@@ -119,6 +119,7 @@ class Users(db.Model):
     camping = db.Column(db.Boolean, default=False, nullable=False)
     brunch = db.Column(db.Boolean, default=False, nullable=False)
 
+
     def __repr__(self):
         return f"{self.id=}, {self.first_name}, {self.camping}, {self.brunch}"
 
@@ -153,7 +154,6 @@ class Users(db.Model):
         db.session.commit()
 
     def toDICT(self):
-
         cls_dict = {}
         cls_dict['_id'] = self.id
         cls_dict['firstName'] = self.first_name
@@ -166,6 +166,11 @@ class Users(db.Model):
         cls_dict['songRequest'] = self.song_request
         cls_dict['camping'] = self.camping
         cls_dict['brunch'] = self.brunch
+
+        # Include userquiz if it exists
+        userquiz = UserQuiz.query.filter_by(user_id=self.id).first()
+        if userquiz:
+            cls_dict['userQuiz'] = userquiz.toDICT()
 
         return cls_dict
 
