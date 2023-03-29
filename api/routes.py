@@ -890,6 +890,8 @@ class GetNextQuestion(Resource):
         if user_quiz.current_question_index == 0:
             question = QuizQuestions.random_question()
             user_quiz.set_current_question_index(question.id)
+            if user_quiz.current_question_index == -1:
+                return {"success": True, "question": {"id": -1}}, 200
             return {"success": True, "question": question.toDICT()}, 200
 
         # If the quiz is in progress
