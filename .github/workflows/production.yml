@@ -1,10 +1,10 @@
-name: Build and Deploy the API
+name: Build and Deploy the Prod API
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "main" ]
 
 env:
   REGISTRY: ghcr.io
@@ -39,7 +39,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: "ghcr.io/cyclohexanol/wedding-backend:main" #${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   deploy:
@@ -69,5 +69,5 @@ jobs:
               docker stop $CONTAINER_ID
               docker rm $CONTAINER_ID
             fi
-            docker pull ghcr.io/cyclohexanol/wedding-backend:develop
-            docker run -dit -p 5000:5005 -v /root/data:/data -v /root/db:/app/db --name $CONTAINER_NAME ghcr.io/cyclohexanol/wedding-backend:develop
+            docker pull ghcr.io/cyclohexanol/wedding-backend:main
+            docker run -dit -p 5000:5005 -v /root/data:/data -v /root/db:/app/db --env BRANCH="main" --name $CONTAINER_NAME ghcr.io/cyclohexanol/wedding-backend:main
